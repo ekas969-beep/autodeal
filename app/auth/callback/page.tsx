@@ -11,7 +11,7 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function finishSignIn() {
       const searchParams = new URLSearchParams(window.location.search)
-      const next = getSafeNextPath(searchParams.get("next"))
+      const next = getSafeNextPath(sessionStorage.getItem("autodeal-auth-next"))
       const errorDescription =
         searchParams.get("error_description") ||
         searchParams.get("error") ||
@@ -19,6 +19,7 @@ export default function AuthCallbackPage() {
         readHashParam("error")
 
       if (errorDescription) {
+        sessionStorage.removeItem("autodeal-auth-next")
         router.replace(`/login?error=${encodeURIComponent(errorDescription)}`)
         return
       }
@@ -29,6 +30,7 @@ export default function AuthCallbackPage() {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (error) {
+          sessionStorage.removeItem("autodeal-auth-next")
           setMessage("Could not finish Google sign in. Returning to login...")
           router.replace(`/login?error=${encodeURIComponent(error.message)}`)
           return
@@ -39,12 +41,14 @@ export default function AuthCallbackPage() {
         } = await supabase.auth.getSession()
 
         if (!session) {
+          sessionStorage.removeItem("autodeal-auth-next")
           setMessage("Could not find a Google session. Returning to login...")
           router.replace("/login?error=Google%20sign%20in%20did%20not%20complete")
           return
         }
       }
 
+      sessionStorage.removeItem("autodeal-auth-next")
       router.replace(next)
       router.refresh()
     }

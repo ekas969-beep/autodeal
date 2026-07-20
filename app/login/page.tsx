@@ -16,7 +16,13 @@ export default function LoginPage() {
   const [message, setMessage] = useState("")
 
   useEffect(() => {
-    const authError = new URLSearchParams(window.location.search).get("error")
+    const search = new URLSearchParams(window.location.search)
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    const authError =
+      search.get("error_description") ||
+      search.get("error") ||
+      hash.get("error_description") ||
+      hash.get("error")
 
     if (authError) {
       setError(authError)
@@ -84,10 +90,12 @@ export default function LoginPage() {
     setError("")
     setMessage("")
 
+    sessionStorage.setItem("autodeal-auth-next", "/account")
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/account`,
+        redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           prompt: "select_account",
         },
