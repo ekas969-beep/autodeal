@@ -16,6 +16,12 @@ export default function LoginPage() {
   const [message, setMessage] = useState("")
 
   useEffect(() => {
+    const authError = new URLSearchParams(window.location.search).get("error")
+
+    if (authError) {
+      setError(authError)
+    }
+
     async function checkSession() {
       const {
         data: { session },
@@ -81,7 +87,10 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/account`,
+        redirectTo: `${window.location.origin}/auth/callback?next=/account`,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     })
 
