@@ -16,6 +16,9 @@ const EDGE_RESISTANCE = 80
 const WHEEL_SWITCH_COOLDOWN_MS = 350
 const DOUBLE_TAP_DELAY_MS = 320
 const TAP_MOVE_TOLERANCE = 10
+const SWIPE_DISTANCE = 45
+const SWIPE_VERTICAL_LIMIT = 70
+const SWIPE_LOCK_DISTANCE = 12
 
 export default function CarGallery({
   images,
@@ -34,6 +37,7 @@ export default function CarGallery({
   const startedOnBackdropRef = useRef(false)
   const lastTapRef = useRef({ time: 0, x: 0, y: 0 })
   const wheelSwipeRef = useRef({ delta: 0, locked: false })
+  const previewTouchRef = useRef({ x: 0, y: 0, swiped: false })
   const wheelResetRef = useRef<number | null>(null)
   const viewerRef = useRef<HTMLDivElement | null>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -88,6 +92,68 @@ export default function CarGallery({
   function openGallery(index: number) {
     setPhoto(index)
     setIsOpen(true)
+  }
+
+  function handlePreviewTouchStart(event: React.TouchEvent<HTMLButtonElement>) {
+    const touch = event.touches[0]
+
+    previewTouchRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      swiped: false,
+    }
+  }
+
+  function handlePreviewTouchMove(event: React.TouchEvent<HTMLButtonElement>) {
+    const touch = event.touches[0]
+    const distanceX = touch.clientX - previewTouchRef.current.x
+    const distanceY = touch.clientY - previewTouchRef.current.y
+
+    if (
+      canNavigate &&
+      Math.abs(distanceX) > SWIPE_LOCK_DISTANCE &&
+      Math.abs(distanceX) > Math.abs(distanceY)
+    ) {
+      event.preventDefault()
+    }
+  }
+
+  function handlePreviewTouchEnd(event: React.TouchEvent<HTMLButtonElement>) {
+    const touch = event.changedTouches[0]
+    const distanceX = touch.clientX - previewTouchRef.current.x
+    const distanceY = touch.clientY - previewTouchRef.current.y
+
+    if (handlePhotoSwipe(distanceX, distanceY)) {
+      previewTouchRef.current.swiped = true
+    }
+  }
+
+  function handlePreviewClick(index: number) {
+    if (previewTouchRef.current.swiped) {
+      previewTouchRef.current.swiped = false
+      return
+    }
+
+    openGallery(index)
+  }
+
+  function handlePhotoSwipe(distanceX: number, distanceY: number) {
+    if (
+      !canNavigate ||
+      Math.abs(distanceX) < SWIPE_DISTANCE ||
+      Math.abs(distanceY) > SWIPE_VERTICAL_LIMIT ||
+      Math.abs(distanceX) <= Math.abs(distanceY)
+    ) {
+      return false
+    }
+
+    if (distanceX < 0) {
+      goNext()
+    } else {
+      goPrevious()
+    }
+
+    return true
   }
 
   function changeZoom(nextZoom: number) {
@@ -196,13 +262,19 @@ export default function CarGallery({
   }
 
   function stopDrag(event: React.PointerEvent<HTMLDivElement>) {
+    const distanceX = event.clientX - pointerStartRef.current.x
+    const distanceY = event.clientY - pointerStartRef.current.y
     const movedDistance = Math.hypot(
-      event.clientX - pointerStartRef.current.x,
-      event.clientY - pointerStartRef.current.y
+      distanceX,
+      distanceY
     )
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    if (!isZoomed && handlePhotoSwipe(distanceX, distanceY)) {
+      return
     }
 
     if (movedDistance <= TAP_MOVE_TOLERANCE && startedOnBackdropRef.current) {
@@ -275,8 +347,11 @@ export default function CarGallery({
         <div className="group relative h-[240px] w-full overflow-hidden rounded-lg bg-slate-200 sm:h-[330px] lg:h-[410px]">
           <button
             type="button"
-            onClick={() => openGallery(activeIndex)}
-            className="block h-full w-full text-left"
+            onClick={() => handlePreviewClick(activeIndex)}
+            onTouchStart={handlePreviewTouchStart}
+            onTouchMove={handlePreviewTouchMove}
+            onTouchEnd={handlePreviewTouchEnd}
+            className="block h-full w-full touch-pan-y text-left"
           >
             <img
               src={activeImage}
