@@ -32,13 +32,14 @@ export async function POST(request: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!supabaseUrl || !serviceKey) {
+  if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json({ ok: false, error: "Contact reveal is not configured." }, { status: 500 })
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey, {
+  const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
       avatarUrl: cleanText(profile?.avatar_url, 500) || null,
       aboutMe: cleanText(profile?.about_me, 2000),
       phone: cleanText(listing.phone || listing.contact_phone || profile?.phone, 80),
-      email: cleanSellerEmail(listing.email || listing.contact_email),
+      email: chooseSellerEmail(listing.contact_email, listing.email),
     },
   })
 }
@@ -216,6 +217,15 @@ function cleanText(value: unknown, limit: number) {
 function cleanSellerEmail(value: unknown) {
   const email = cleanText(value, 200)
   return email.toLowerCase() === adminEmail ? "" : email
+}
+
+function chooseSellerEmail(...values: unknown[]) {
+  for (const value of values) {
+    const email = cleanSellerEmail(value)
+    if (email) return email
+  }
+
+  return ""
 }
 
 function isPublicListing(listing: { status?: string | null }) {

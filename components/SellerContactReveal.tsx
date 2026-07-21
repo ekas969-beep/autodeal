@@ -13,10 +13,16 @@ type SellerContact = {
   email: string
 }
 
-export default function SellerContactReveal({ listingId }: { listingId: string }) {
+export default function SellerContactReveal({
+  listingId,
+  initialContact = null,
+}: {
+  listingId: string
+  initialContact?: SellerContact | null
+}) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [contact, setContact] = useState<SellerContact | null>(null)
+  const [contact, setContact] = useState<SellerContact | null>(initialContact)
 
   async function revealContact() {
     setLoading(true)
@@ -61,9 +67,9 @@ export default function SellerContactReveal({ listingId }: { listingId: string }
           </div>
 
           <div className="mt-3 rounded-lg border border-slate-200 bg-[#F8FAFC] p-3">
-            <p className="text-sm font-bold text-slate-950">Sign in required</p>
+            <p className="text-sm font-bold text-slate-950">Contact details hidden</p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Show seller contact only when you are interested in this vehicle.
+              Show seller phone and email when you are interested in this vehicle.
             </p>
           </div>
 
