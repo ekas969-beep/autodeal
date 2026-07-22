@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         cancelUrl: `${origin}/payment/cancelled`,
         productName: "AutoDeal.ie Premium",
         amountCents: PREMIUM_BOOST.priceCents,
-        priceId: PREMIUM_BOOST.stripePriceId,
+        priceId: getStripePriceId("STRIPE_PRICE_PREMIUM_BOOST", PREMIUM_BOOST.stripePriceId),
         metadata: {
           user_id: user.id,
           listing_id: body.listing_id,
@@ -86,7 +86,6 @@ export async function POST(request: Request) {
           payment_type: "premium_boost",
           plan_key: PREMIUM_BOOST.key,
           amount_cents: PREMIUM_BOOST.priceCents,
-          amount: PREMIUM_BOOST.priceCents,
           currency: "eur",
           status: "pending",
           credits_purchased: 0,
@@ -111,7 +110,10 @@ export async function POST(request: Request) {
         cancelUrl: `${origin}/payment/cancelled`,
         productName: `AutoDeal.ie Dealer ${pack.name} Pack`,
         amountCents: pack.priceCents,
-        priceId: pack.stripePriceId,
+        priceId: getStripePriceId(
+          `STRIPE_PRICE_${pack.key.toUpperCase()}`,
+          pack.stripePriceId
+        ),
         metadata: {
           user_id: user.id,
           payment_type: "dealer_credit_pack",
@@ -127,7 +129,6 @@ export async function POST(request: Request) {
           payment_type: "dealer_credit_pack",
           plan_key: pack.key,
           amount_cents: pack.priceCents,
-          amount: pack.priceCents,
           currency: "eur",
           status: "pending",
           credits_purchased: pack.credits,
@@ -147,6 +148,10 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
+}
+
+function getStripePriceId(envName: string, fallback: string) {
+  return process.env[envName] || fallback
 }
 
 

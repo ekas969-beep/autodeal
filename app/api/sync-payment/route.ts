@@ -127,7 +127,6 @@ export async function POST(request: Request) {
             payment_type: "premium_boost",
             plan_key: PREMIUM_BOOST.key,
             amount_cents: stripeSession.amount_total || PREMIUM_BOOST.priceCents,
-            amount: stripeSession.amount_total || PREMIUM_BOOST.priceCents,
             currency: stripeSession.currency || "eur",
             status: stripeSession.payment_status === "paid" ? "paid" : "pending",
             credits_purchased: 0,
