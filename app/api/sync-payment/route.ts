@@ -27,6 +27,7 @@ type PaymentRow = {
   stripe_payment_intent_id?: string | null
   payment_type: string
   plan_key: string
+  amount?: number
   amount_cents: number
   currency: string
   status: string
@@ -126,6 +127,7 @@ export async function POST(request: Request) {
             stripe_payment_intent_id: stripeSession.payment_intent || null,
             payment_type: "premium_boost",
             plan_key: PREMIUM_BOOST.key,
+            amount: (stripeSession.amount_total || PREMIUM_BOOST.priceCents) / 100,
             amount_cents: stripeSession.amount_total || PREMIUM_BOOST.priceCents,
             currency: stripeSession.currency || "eur",
             status: stripeSession.payment_status === "paid" ? "paid" : "pending",
