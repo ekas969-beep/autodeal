@@ -70,14 +70,8 @@ export default async function CarPage({
     },
   ].filter((item) => item.value)
   const vehicleName = [listing.brand || listing.make, listing.model].filter(Boolean).join(" ") || listing.title
-  const initialContact = {
-    sellerId: String(listing.user_id || ""),
-    sellerName: "Seller",
-    sellerType: String(listing.seller_type || "Seller"),
-    avatarUrl: null,
-    aboutMe: "",
-    phone: String(listing.phone || listing.contact_phone || "").trim(),
-    email: chooseSellerEmail(listing.contact_email, listing.email),
+  const galleryListing = {
+    title: listing.title,
   }
 
   return (
@@ -92,7 +86,7 @@ export default async function CarPage({
         <div className="grid w-full min-w-0 gap-6 lg:grid-cols-[minmax(0,650px)_470px] lg:justify-center xl:gap-9">
           <div className="contents lg:block lg:min-w-0 lg:space-y-5">
             <div className="order-1 min-w-0">
-              <CarGallery images={images} listing={listing} />
+              <CarGallery images={images} listing={galleryListing} />
             </div>
 
             <section className="hidden lg:block">
@@ -230,12 +224,7 @@ export default async function CarPage({
             </section>
 
             <div id="seller-contact">
-              <SellerContactReveal
-                listingId={String(listing.id)}
-                initialContact={
-                  initialContact.phone || initialContact.email ? initialContact : null
-                }
-              />
+              <SellerContactReveal listingId={String(listing.id)} />
             </div>
           </aside>
         </div>
@@ -502,18 +491,4 @@ function formatEngineSummary(listing: Record<string, unknown>) {
 
 function isPublicListing(listing: { status?: string | null }) {
   return isListingCurrentlyPublic(listing)
-}
-
-function cleanSellerEmail(value: unknown) {
-  const email = String(value || "").trim()
-  return email.toLowerCase() === "ekas969@gmail.com" ? "" : email
-}
-
-function chooseSellerEmail(...values: unknown[]) {
-  for (const value of values) {
-    const email = cleanSellerEmail(value)
-    if (email) return email
-  }
-
-  return ""
 }

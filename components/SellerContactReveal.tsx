@@ -15,14 +15,12 @@ type SellerContact = {
 
 export default function SellerContactReveal({
   listingId,
-  initialContact = null,
 }: {
   listingId: string
-  initialContact?: SellerContact | null
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [contact, setContact] = useState<SellerContact | null>(initialContact)
+  const [contact, setContact] = useState<SellerContact | null>(null)
 
   async function revealContact() {
     setLoading(true)
@@ -30,6 +28,7 @@ export default function SellerContactReveal({
 
     const response = await fetch("/api/listing-contact", {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
       },
@@ -69,7 +68,8 @@ export default function SellerContactReveal({
           <div className="mt-3 rounded-lg border border-slate-200 bg-[#F8FAFC] p-3">
             <p className="text-sm font-bold text-slate-950">Contact details hidden</p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Show seller phone and email when you are interested in this vehicle.
+              Show seller phone and email only when you are genuinely interested.
+              To protect sellers, repeated contact reveals may be limited.
             </p>
           </div>
 
@@ -79,7 +79,7 @@ export default function SellerContactReveal({
             disabled={loading}
             className="mt-3 flex h-10 w-full items-center justify-center rounded-lg bg-[#005BFF] text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Checking..." : "Contact Seller"}
+            {loading ? "Checking..." : "Show seller contact"}
           </button>
 
           {error && (

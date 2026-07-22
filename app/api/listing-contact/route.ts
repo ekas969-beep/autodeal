@@ -3,9 +3,10 @@ import { NextResponse } from "next/server"
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { isListingCurrentlyPublic } from "@/lib/listing-expiry"
 
-const windowMs = 5 * 60 * 1000
+const windowMs = 10 * 60 * 1000
 const blockMs = 24 * 60 * 60 * 1000
-const maxUniqueListings = 10
+const maxUniqueListings = 6
+const maxRevealEvents = 20
 const adminEmail = "ekas969@gmail.com"
 
 type MemoryEvent = {
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   const listingId = cleanText(body?.listingId, 80)
 
   if (!listingId) {
-    return NextResponse.json({ ok: false, error: "Listing id is required." }, { status: 400 })
+    return noStoreJson({ ok: false, error: "Listing id is required." }, { status: 400 })
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ ok: false, error: "Contact reveal is not configured." }, { status: 500 })
+    return noStoreJson({ ok: false, error: "Contact reveal is not configured." }, { status: 500 })
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
   const rateLimit = await checkContactRateLimit(supabase, ipHash, listingId)
 
   if (!rateLimit.allowed) {
-    return NextResponse.json(
+    return noStoreJson(
       {
         ok: false,
         error: `Too many seller contacts opened. Try again ${formatBlockedUntil(rateLimit.blockedUntil)}.`,
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error || !listing || !isPublicListing(listing)) {
-    return NextResponse.json({ ok: false, error: "Listing contact is unavailable." }, { status: 404 })
+    return noStoreJson({ ok: false, error: "Listing contact is unavailable." }, { status: 404 })
   }
 
   const { data: profile } = await supabase
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
 
   const sellerName = cleanText(profile?.display_name, 80) || "Seller"
 
-  return NextResponse.json({
+  return noStoreJson({
     ok: true,
     contact: {
       sellerId: listing.user_id,
@@ -126,9 +127,15 @@ async function checkContactRateLimit(
       .filter((event) => new Date(event.created_at).getTime() >= now - windowMs)
       .map((event) => String(event.listing_id))
   )
+  const recentEventCount = events.filter((event) => {
+    return new Date(event.created_at).getTime() >= now - windowMs
+  }).length
   const isNewListingInWindow = !recentListings.has(listingId)
 
-  if (isNewListingInWindow && recentListings.size >= maxUniqueListings) {
+  if (
+    recentEventCount >= maxRevealEvents ||
+    (isNewListingInWindow && recentListings.size >= maxUniqueListings)
+  ) {
     const blockedUntil = new Date(now + blockMs)
     await supabase.from("contact_reveal_events").insert({
       ip_hash: ipHash,
@@ -170,9 +177,15 @@ function checkMemoryRateLimit(ipHash: string, listingId: string) {
       .filter((event) => event.ipHash === ipHash && now - event.createdAt <= windowMs)
       .map((event) => event.listingId)
   )
+  const recentEventCount = memoryEvents.filter((event) => {
+    return event.ipHash === ipHash && now - event.createdAt <= windowMs
+  }).length
   const isNewListingInWindow = !recentListings.has(listingId)
 
-  if (isNewListingInWindow && recentListings.size >= maxUniqueListings) {
+  if (
+    recentEventCount >= maxRevealEvents ||
+    (isNewListingInWindow && recentListings.size >= maxUniqueListings)
+  ) {
     const blockedUntil = now + blockMs
     memoryEvents.push({ ipHash, listingId, createdAt: now, blockedUntil })
     return { allowed: false, blockedUntil }
@@ -230,4 +243,10 @@ function chooseSellerEmail(...values: unknown[]) {
 
 function isPublicListing(listing: { status?: string | null }) {
   return isListingCurrentlyPublic(listing)
+}
+
+function noStoreJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init)
+  response.headers.set("Cache-Control", "no-store, max-age=0")
+  return response
 }
