@@ -34,6 +34,7 @@ const policySections: PolicySection[] = [
         heading: "(a) Information you provide directly:",
         items: [
           "Account Registration: Name, email address, password, and profile details.",
+          "Google Sign-In: If you choose to sign in with Google, we receive the basic account information needed to create and secure your AutoDeal.ie account, such as your email address, name, profile image when provided, and Google account identifier.",
           "Listing a Vehicle: Car details, photographs, location, contact phone number.",
           "Communications: Messages sent via the platform, inquiries, and customer support requests.",
           "Transactions: Payment and billing information for premium or dealership plans, processed securely via our payment providers.",
@@ -54,6 +55,7 @@ const policySections: PolicySection[] = [
     ],
     items: [
       "To create, manage, and authenticate your user account.",
+      "To let you sign in securely with Google when you choose that option.",
       "To display and publish your car advertisements to potential buyers.",
       "To facilitate secure communication between buyers and sellers.",
       "To process payments and manage VIP/Premium listings.",
@@ -68,6 +70,7 @@ const policySections: PolicySection[] = [
     ],
     items: [
       "Service Providers: Hosting partners, email delivery services, and analytics providers.",
+      "Authentication Providers: Supabase and Google may process the limited account data needed to complete secure sign-in.",
       "Payment Processors: Companies like Stripe to handle transactions securely.",
       "Public Display: Information you voluntarily include in your vehicle listings, such as contact numbers, car details, and location, will be publicly visible to other users.",
       "Legal Requirements: If required by law, we may disclose information to law enforcement or regulatory agencies.",

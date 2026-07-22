@@ -32,8 +32,8 @@ export default function SiteFooter() {
               <FooterLink href="/about">About AutoDeal</FooterLink>
               <FooterLink href="/contact">Contact Support</FooterLink>
               <FooterLink href="/faq">FAQ</FooterLink>
-              <FooterLink href="/terms">Terms of Use</FooterLink>
-              <FooterLink href="/privacy">Privacy Policy</FooterLink>
+              <FooterLink href="/terms-and-conditions">Terms of Use</FooterLink>
+              <FooterLink href="/privacy-policy">Privacy Policy</FooterLink>
             </div>
           </div>
 
