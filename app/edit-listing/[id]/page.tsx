@@ -4,6 +4,10 @@ import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { type FormEvent, useEffect, useRef, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import {
+  allPremiumEquipmentOptions,
+  getPremiumEquipmentOptions,
+} from "@/config/premium-equipment"
 
 const imageBucket = "listing-images"
 const maxPhotos = 30
@@ -20,23 +24,9 @@ const categories = [
 
 const fuelOptions = ["Petrol", "Diesel", "Hybrid", "Electric", "Other"]
 const transmissionOptions = ["Manual", "Automatic"]
-const bodyTypes = [
-  "Hatchback",
-  "Saloon",
-  "Estate",
-  "SUV",
-  "Coupe",
-  "Convertible",
-  "MPV",
-  "Van",
-  "Scooter",
-  "Naked",
-  "Sport",
-  "Touring",
-  "Pickup",
-  "Truck",
-  "Other",
-]
+const carBodyTypes = ["Hatchback", "Saloon", "Estate", "SUV", "Coupe", "Convertible", "MPV", "Van"]
+const motorcycleBodyTypes = ["Scooter", "Naked", "Sport", "Touring", "Cruiser", "Adventure", "Moped", "Other"]
+const commercialBodyTypes = ["Van", "Pickup", "Truck", "Tipper", "Box Body", "Minibus", "Other"]
 const colors = [
   "Black",
   "White",
@@ -166,7 +156,12 @@ export default function EditListingPage() {
   const [saveDetail, setSaveDetail] = useState("")
   const [savePercent, setSavePercent] = useState(0)
   const [successModalOpen, setSuccessModalOpen] = useState(false)
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([])
+  const [isPremiumListing, setIsPremiumListing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const showPremiumEquipment = premiumCreditUpgrade || isPremiumListing
+  const premiumEquipmentOptions = getPremiumEquipmentOptions(form.category)
+  const currentBodyTypes = getBodyTypeOptions(form.category)
 
   useEffect(() => {
     const goTop = () => {
@@ -209,6 +204,13 @@ export default function EditListingPage() {
       }
 
       setImages(Array.isArray(data.images) ? data.images : [])
+      setIsPremiumListing(
+        Boolean(data.is_premium || data.premium_badge || data.plan_type === "premium")
+      )
+
+      const descriptionParts = splitPremiumEquipment(text(data.description))
+
+      setSelectedEquipment(descriptionParts.equipment)
 
       setForm({
         title: text(data.title),
@@ -236,7 +238,7 @@ export default function EditListingPage() {
         seller_type: text(data.seller_type),
         contact_phone: text(data.contact_phone || data.phone),
         contact_email: cleanAdminEmail(data.contact_email || data.email),
-        description: text(data.description),
+        description: descriptionParts.description,
       })
 
       setLoading(false)
@@ -253,6 +255,19 @@ export default function EditListingPage() {
       urls.forEach((url) => URL.revokeObjectURL(url))
     }
   }, [newImages])
+
+  useEffect(() => {
+    const allowedEquipment = getPremiumEquipmentOptions(form.category)
+    setSelectedEquipment((current) =>
+      current.filter((item) => allowedEquipment.includes(item))
+    )
+  }, [form.category])
+
+  useEffect(() => {
+    if (form.body_type && !currentBodyTypes.includes(form.body_type)) {
+      updateField("body_type", "")
+    }
+  }, [form.category, form.body_type, currentBodyTypes])
 
   function updateField(name: keyof ListingForm, value: string) {
     setForm((current) => ({ ...current, [name]: value }))
@@ -291,6 +306,14 @@ export default function EditListingPage() {
     setNewImages((current) => moveItemToStart(current, index))
   }
 
+  function toggleEquipment(item: string) {
+    setSelectedEquipment((current) =>
+      current.includes(item)
+        ? current.filter((selected) => selected !== item)
+        : [...current, item]
+    )
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -308,14 +331,20 @@ export default function EditListingPage() {
     const uploadedImageUrls: string[] = []
 
     if (newImages.length > 0) {
-      setSaveStep("Uploading photos")
-      setSaveDetail(`Uploading ${newImages.length} new photo${newImages.length === 1 ? "" : "s"}...`)
+      setSaveStep("Optimising photos")
+      setSaveDetail(
+        `Reducing ${newImages.length} new photo${newImages.length === 1 ? "" : "s"} while keeping good quality...`
+      )
       setSavePercent(30)
 
       for (let i = 0; i < newImages.length; i++) {
         try {
+          setSaveDetail(`Optimising photo ${i + 1} of ${newImages.length}`)
           const image = await compressImage(newImages[i])
           const fileName = `${userId}/${crypto.randomUUID()}-${cleanFileName(image.name)}`
+
+          setSaveStep("Uploading photos")
+          setSaveDetail(`Uploading photo ${i + 1} of ${newImages.length}`)
 
           const { error: uploadError } = await supabase.storage
             .from(imageBucket)
@@ -374,7 +403,11 @@ export default function EditListingPage() {
       contact_phone: form.contact_phone.trim(),
       email: cleanAdminEmail(form.contact_email),
       contact_email: cleanAdminEmail(form.contact_email),
-      description: form.description.trim(),
+      description: buildDescriptionWithEquipment(
+        form.description.trim(),
+        showPremiumEquipment ? selectedEquipment : [],
+        form.category
+      ),
       images: nextImages,
       featured_image_url: nextImages[0] || null,
     }
@@ -605,7 +638,7 @@ export default function EditListingPage() {
                 label={form.category === "motorcycles" ? "Bike Type" : "Body Type"}
                 value={form.body_type}
                 onChange={(value) => updateField("body_type", value)}
-                options={bodyTypes.map((item) => ({ label: item, value: item }))}
+                options={currentBodyTypes.map((item) => ({ label: item, value: item }))}
               />
 
               <Select
@@ -707,6 +740,39 @@ export default function EditListingPage() {
               </label>
             </div>
           </Card>
+
+          {showPremiumEquipment && (
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm shadow-emerald-100">
+              <div className="mb-5 flex flex-col gap-1">
+                <p className="text-sm font-black uppercase tracking-wide text-emerald-700">
+                  Premium extra
+                </p>
+                <h2 className="text-xl font-black text-emerald-950">
+                  {form.category === "motorcycles" ? "Motorcycle equipment" : "Vehicle equipment"}
+                </h2>
+                <p className="text-sm font-semibold text-emerald-800">
+                  Select the extra equipment included with this Premium listing.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {premiumEquipmentOptions.map((item) => (
+                  <label
+                    key={item}
+                    className="flex min-h-12 items-center gap-3 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm font-bold text-slate-800 shadow-sm hover:border-emerald-400"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedEquipment.includes(item)}
+                      onChange={() => toggleEquipment(item)}
+                      className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>{item}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
 
           <Card title="Registration & History">
             <div className="grid gap-5 md:grid-cols-3">
@@ -1025,6 +1091,57 @@ function text(value: unknown) {
 function cleanAdminEmail(value: unknown) {
   const email = text(value).trim()
   return email.toLowerCase() === adminEmail ? "" : email
+}
+
+function getBodyTypeOptions(category: string) {
+  if (category === "motorcycles") return motorcycleBodyTypes
+  if (category === "commercial") return commercialBodyTypes
+  return carBodyTypes
+}
+
+function splitPremiumEquipment(description: string) {
+  const marker = "Premium equipment:"
+  const markerIndex = description.indexOf(marker)
+
+  if (markerIndex === -1) {
+    return { description, equipment: [] as string[] }
+  }
+
+  const baseDescription = description.slice(0, markerIndex).trim()
+  const equipmentBlock = description.slice(markerIndex + marker.length)
+  const equipment = equipmentBlock
+    .split("\n")
+    .map((line) => line.replace(/^-\s*/, "").trim())
+    .filter((item) => allPremiumEquipmentOptions.includes(item))
+
+  return {
+    description: baseDescription,
+    equipment: Array.from(new Set(equipment)),
+  }
+}
+
+function buildDescriptionWithEquipment(
+  description: string,
+  equipment: string[],
+  category: string
+) {
+  const cleanDescription = splitPremiumEquipment(description).description.trim()
+  const allowedEquipment = getPremiumEquipmentOptions(category)
+  const selectedEquipment = Array.from(new Set(equipment)).filter((item) =>
+    allowedEquipment.includes(item)
+  )
+
+  if (selectedEquipment.length === 0) return cleanDescription
+
+  return [
+    cleanDescription,
+    [
+      "Premium equipment:",
+      ...selectedEquipment.map((item) => `- ${item}`),
+    ].join("\n"),
+  ]
+    .filter(Boolean)
+    .join("\n\n")
 }
 
 function dateValue(value: unknown) {

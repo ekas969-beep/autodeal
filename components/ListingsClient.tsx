@@ -9,6 +9,7 @@ import FavoriteButton from "@/components/FavoriteButton"
 import ListingCardMeta from "@/components/ListingCardMeta"
 import ListingStatusBadges from "@/components/ListingStatusBadges"
 import { isListingCurrentlyPublic } from "@/lib/listing-expiry"
+import { shuffleListingsBySeed } from "@/lib/listing-random"
 import {
   readSearchHistory,
   saveSearchHistory,
@@ -197,6 +198,7 @@ function ListingsContent({
   const [currentPage, setCurrentPage] = useState(1)
   const [keyword, setKeyword] = useState(searchParams.get("q") || "")
   const [sortOption, setSortOption] = useState<SortOption>("best")
+  const [premiumBoostSeed, setPremiumBoostSeed] = useState(0)
 
   const [brand, setBrand] = useState(searchParams.get("brand") || "")
   const [model, setModel] = useState(searchParams.get("model") || "")
@@ -278,6 +280,10 @@ function ListingsContent({
         setLoading(false)
       }
     }
+  }, [])
+
+  useEffect(() => {
+    setPremiumBoostSeed(Math.random())
   }, [])
 
 
@@ -514,8 +520,8 @@ function ListingsContent({
       return results.sort((a, b) => getListingRating(b) - getListingRating(a))
     }
 
-    return results
-  }, [listings, sortOption])
+    return boostPremiumSearchMatches(results, premiumBoostSeed, hasSearchTarget(keyword, brand, model))
+  }, [listings, sortOption, premiumBoostSeed, keyword, brand, model])
 
   const visibleListings = useMemo(() => {
     const safePage = Math.min(Math.max(currentPage, 1), totalPages)
@@ -1473,6 +1479,37 @@ function getListingRating(car: any) {
     getNumberValue(car.rating_score),
     getNumberValue(car.seller_rating)
   )
+}
+
+function hasSearchTarget(keyword: string, brand: string, model: string) {
+  return Boolean(keyword.trim() || brand.trim() || model.trim())
+}
+
+function boostPremiumSearchMatches(
+  listings: Record<string, unknown>[],
+  seed: number,
+  shouldBoost: boolean
+) {
+  if (!shouldBoost) return listings
+
+  const premiumListings = shuffleListingsBySeed(
+    listings.filter((car) => isPremiumListing(car)),
+    seed
+  )
+
+  const boostedListings = premiumListings.slice(0, 2)
+  if (boostedListings.length === 0) return listings
+
+  const boostedIds = new Set(boostedListings.map(getListingIdentity))
+
+  return [
+    ...boostedListings,
+    ...listings.filter((car) => !boostedIds.has(getListingIdentity(car))),
+  ]
+}
+
+function getListingIdentity(car: Record<string, unknown>) {
+  return String(car.id || car.slug || car.featured_image_url || car.title || "")
 }
 
 function isPremiumListing(car: Record<string, unknown>) {

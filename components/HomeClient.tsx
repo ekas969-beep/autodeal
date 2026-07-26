@@ -8,6 +8,7 @@ import FavoriteButton from "@/components/FavoriteButton"
 import ListingCardMeta from "@/components/ListingCardMeta"
 import ListingStatusBadges from "@/components/ListingStatusBadges"
 import { isListingCurrentlyPublic } from "@/lib/listing-expiry"
+import { shuffleListingsBySeed } from "@/lib/listing-random"
 import {
   readSearchHistory,
   saveSearchHistory,
@@ -124,6 +125,7 @@ export default function HomeClient({
   const [featuredLimit, setFeaturedLimit] = useState(FEATURED_INITIAL_LIMIT)
   const [latestLimit, setLatestLimit] = useState(LATEST_INITIAL_LIMIT)
   const [browseTab, setBrowseTab] = useState<BrowseTab>("brands")
+  const [featuredShuffleSeed, setFeaturedShuffleSeed] = useState(0)
 
   const [brand, setBrand] = useState("")
   const [model, setModel] = useState("")
@@ -171,6 +173,10 @@ export default function HomeClient({
   useEffect(() => {
     loadListings({ silent: hasInitialListings })
   }, [hasInitialListings])
+
+  useEffect(() => {
+    setFeaturedShuffleSeed(Math.random())
+  }, [])
 
   useEffect(() => {
     const refreshListings = () => {
@@ -376,8 +382,11 @@ export default function HomeClient({
   const locations = useMemo(() => unique(typeListings.map((car) => car.location)), [typeListings])
 
   const featuredListings = useMemo(
-    () => allListings.filter((car) => isPremiumListing(car)),
-    [allListings]
+    () => shuffleListingsBySeed(
+      allListings.filter((car) => isPremiumListing(car)),
+      featuredShuffleSeed
+    ),
+    [allListings, featuredShuffleSeed]
   )
 
   const visibleFeaturedListings = useMemo(

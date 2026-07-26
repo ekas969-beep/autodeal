@@ -17,12 +17,13 @@ import {
   freeListingFields,
   pendingPremiumListingFields,
 } from "@/config/plans"
+import { getPremiumEquipmentOptions } from "@/config/premium-equipment"
 import { carMakes, carModels } from "@/lib/vehicle-options"
 
 const imageBucket = "listing-images"
-const maxImageWidth = 1800
-const maxImageHeight = 1350
-const imageQuality = 0.78
+const maxImageWidth = 1600
+const maxImageHeight = 1200
+const imageQuality = 0.82
 
 const draftIndexKey = "autodeal-listing-drafts"
 
@@ -89,32 +90,6 @@ const doorOptions = ["2", "3", "4", "5"]
 const seatOptions = ["1", "2", "4", "5", "6", "7", "8+"]
 const registrationCountries = ["Ireland", "UK", "Northern Ireland", "Other"]
 const sellerTypes = ["Private Seller", "Dealership"]
-const premiumEquipmentOptions = [
-  "Leather seats",
-  "Heated seats",
-  "Ventilated seats",
-  "Electric seats",
-  "Memory seats",
-  "Panoramic roof",
-  "Sunroof",
-  "Navigation",
-  "Apple CarPlay",
-  "Android Auto",
-  "Bluetooth",
-  "Reversing camera",
-  "360 camera",
-  "Parking sensors",
-  "Adaptive cruise control",
-  "Lane assist",
-  "Blind spot monitor",
-  "Keyless entry",
-  "Keyless start",
-  "LED headlights",
-  "Xenon headlights",
-  "Alloy wheels",
-  "Tow bar",
-  "Service history",
-]
 const counties = [
   "Co. Antrim", "Co. Armagh", "Co. Carlow", "Co. Cavan", "Co. Clare",
   "Co. Cork", "Co. Derry", "Co. Donegal", "Co. Down", "Co. Dublin",
@@ -220,6 +195,7 @@ function SellNewContent() {
     : isCommercial
       ? commercialBodyTypes
       : carBodyTypes
+  const premiumEquipmentOptions = getPremiumEquipmentOptions(category)
 
   const currentFuelOptions = isMotorcycle ? motorcycleFuelOptions : fuelOptions
 
@@ -483,7 +459,7 @@ function SellNewContent() {
       const selectedEquipment = formData
         .getAll("equipment")
         .map((item) => String(item || "").trim())
-        .filter(Boolean)
+        .filter((item) => premiumEquipmentOptions.includes(item))
       const electricInfo = getElectricVehicleInfo(formData, fuel)
       const tradeInfo = getTradeInfo(formData)
       const description = buildListingDescription(
@@ -850,7 +826,7 @@ function SellNewContent() {
                   Premium extra
                 </p>
                 <h2 className="text-xl font-black text-emerald-950">
-                  Vehicle equipment
+                  {isMotorcycle ? "Motorcycle equipment" : "Vehicle equipment"}
                 </h2>
                 <p className="text-sm font-semibold text-emerald-800">
                   Select the extra equipment included with this Premium listing.

@@ -1,7 +1,14 @@
 ﻿"use client"
 
 import Link from "next/link"
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
+import {
+  type FormEvent,
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import { usePathname, useRouter } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
@@ -281,10 +288,20 @@ export default function Navbar() {
     window.dispatchEvent(new Event("autodeal-refresh-public-listings"))
   }
 
+  function handleHomeClick(event: ReactMouseEvent<HTMLAnchorElement>) {
+    resetHomeScroll()
+
+    if (pathname !== "/") return
+
+    event.preventDefault()
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    window.location.assign("/")
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-sm shadow-slate-900/[0.03] backdrop-blur">
       <div className="relative mx-auto grid h-16 max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[70px] sm:gap-4 sm:px-4">
-        <Link href="/" prefetch={false} onClick={resetHomeScroll} className="group flex items-center" aria-label="AutoDeal.ie home">
+        <Link href="/" prefetch={false} onClick={handleHomeClick} className="group flex items-center" aria-label="AutoDeal.ie home">
           <img
             src="/brand/autodeal-logo.png"
             alt="AutoDeal.ie"
@@ -305,7 +322,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={link.href === "/" ? resetHomeScroll : undefined}
+                onClick={link.href === "/" ? handleHomeClick : undefined}
                 className={`relative py-6 transition hover:text-[#005BFF] ${
                   active ? "text-[#005BFF]" : ""
                 }`}
