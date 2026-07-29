@@ -18,6 +18,18 @@ function limitText(value: unknown, limit: number) {
   return String(value).slice(0, limit)
 }
 
+function isBrowserNoise(event: ErrorEvent) {
+  const message = (event.message || "").trim().toLowerCase()
+  const source = event.filename || ""
+
+  if (message === "script error." && !source && !event.error) return true
+  if (source.startsWith("chrome-extension://")) return true
+  if (source.startsWith("moz-extension://")) return true
+  if (source.startsWith("opera://")) return true
+
+  return false
+}
+
 export default function ClientErrorReporter() {
   const tokenRef = useRef("")
   const recentRef = useRef<Map<string, number>>(new Map())
@@ -80,6 +92,8 @@ export default function ClientErrorReporter() {
     }
 
     function handleError(event: ErrorEvent) {
+      if (isBrowserNoise(event)) return
+
       send({
         level: "error",
         message: limitText(event.message || "Client error", 2000),
