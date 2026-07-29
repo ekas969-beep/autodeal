@@ -99,6 +99,51 @@ export default function SellPage() {
     window.location.assign(data.url)
   }
 
+  async function createPremium() {
+    if (!isSignedIn) {
+      router.push("/login")
+      return
+    }
+
+    if (creditsBalance >= PREMIUM_BOOST.creditsRequired) {
+      router.push("/sell/new?plan=premium")
+      return
+    }
+
+    setLoadingPack(PREMIUM_BOOST.key)
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      router.push("/login")
+      return
+    }
+
+    const response = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        type: "dealer_credit_pack",
+        plan_key: PREMIUM_BOOST.key,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok || !data.url) {
+      alert(data.error || "Could not start checkout.")
+      setLoadingPack("")
+      return
+    }
+
+    window.location.assign(data.url)
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950">
       <section className="mx-auto max-w-7xl">
@@ -170,12 +215,16 @@ export default function SellPage() {
               ) : (
                 <Price value={formatPlanPrice(PREMIUM_BOOST.priceCents)} note="/ premium" />
               )}
-              <Link
-                href={isSignedIn ? "/sell/new?plan=premium" : "/login"}
+              <button
+                type="button"
+                onClick={createPremium}
+                disabled={loadingPack === PREMIUM_BOOST.key}
                 className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-100 hover:bg-emerald-600"
               >
-                Create Premium
-              </Link>
+                {loadingPack === PREMIUM_BOOST.key
+                  ? "Opening checkout..."
+                  : "Create Premium"}
+              </button>
             </div>
           </article>
 

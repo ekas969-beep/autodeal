@@ -1,6 +1,14 @@
 import Link from "next/link"
 
-export default function PaymentSuccessPage() {
+type PaymentSuccessPageProps = {
+  searchParams: Promise<{ next?: string | string[] }>
+}
+
+export default async function PaymentSuccessPage({ searchParams }: PaymentSuccessPageProps) {
+  const params = await searchParams
+  const next = Array.isArray(params.next) ? params.next[0] : params.next
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : ""
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-16 text-slate-950">
       <section className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -15,6 +23,15 @@ export default function PaymentSuccessPage() {
         </p>
 
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          {safeNext ? (
+            <Link
+              href={safeNext}
+              className="flex h-12 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white hover:bg-emerald-700"
+            >
+              Create Premium Listing
+            </Link>
+          ) : null}
+
           <Link
             href="/account"
             className="flex h-12 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700"

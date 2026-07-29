@@ -100,19 +100,36 @@ export async function POST(request: Request) {
     }
 
     if (body.type === "dealer_credit_pack") {
-      const pack = DEALER_PACKS[body.plan_key as DealerPackKey]
+      const pack =
+        body.plan_key === PREMIUM_BOOST.key
+          ? {
+              key: PREMIUM_BOOST.key,
+              name: "Premium Listing",
+              credits: PREMIUM_BOOST.creditsRequired,
+              priceCents: PREMIUM_BOOST.priceCents,
+              stripePriceId: PREMIUM_BOOST.stripePriceId,
+            }
+          : DEALER_PACKS[body.plan_key as DealerPackKey]
 
       if (!pack) {
         return NextResponse.json({ error: "Invalid dealer pack." }, { status: 400 })
       }
 
       const session = await createStripeCheckoutSession({
-        successUrl: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+        successUrl:
+          pack.key === PREMIUM_BOOST.key
+            ? `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&next=/sell/new?plan=premium`
+            : `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${origin}/payment/cancelled`,
-        productName: `AutoDeal.ie Dealer ${pack.name} Pack`,
+        productName:
+          pack.key === PREMIUM_BOOST.key
+            ? "AutoDeal.ie Premium Listing Credit"
+            : `AutoDeal.ie Dealer ${pack.name} Pack`,
         amountCents: pack.priceCents,
         priceId: getStripePriceId(
-          `STRIPE_PRICE_${pack.key.toUpperCase()}`,
+          pack.key === PREMIUM_BOOST.key
+            ? "STRIPE_PRICE_PREMIUM_BOOST"
+            : `STRIPE_PRICE_${pack.key.toUpperCase()}`,
           pack.stripePriceId
         ),
         metadata: {
