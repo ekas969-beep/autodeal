@@ -105,11 +105,6 @@ export default function SellPage() {
       return
     }
 
-    if (creditsBalance >= PREMIUM_BOOST.creditsRequired) {
-      router.push("/sell/new?plan=premium")
-      return
-    }
-
     setLoadingPack(PREMIUM_BOOST.key)
 
     const {

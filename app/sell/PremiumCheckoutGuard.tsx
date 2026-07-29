@@ -29,24 +29,6 @@ export default function PremiumCheckoutGuard() {
       action.setAttribute("aria-disabled", "true")
       action.textContent = "Opening checkout..."
 
-      await fetch("/api/account-sync", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      }).catch(() => null)
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("credits_balance")
-        .eq("id", session.user.id)
-        .maybeSingle()
-
-      if (Number(profile?.credits_balance || 0) >= PREMIUM_BOOST.creditsRequired) {
-        window.location.assign("/sell/new?plan=premium")
-        return
-      }
-
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: {
