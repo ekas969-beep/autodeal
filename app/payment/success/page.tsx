@@ -1,12 +1,14 @@
 import Link from "next/link"
+import { PaymentSuccessStatus } from "./PaymentSuccessStatus"
 
 type PaymentSuccessPageProps = {
-  searchParams: Promise<{ next?: string | string[] }>
+  searchParams: Promise<{ next?: string | string[]; session_id?: string | string[] }>
 }
 
 export default async function PaymentSuccessPage({ searchParams }: PaymentSuccessPageProps) {
   const params = await searchParams
   const next = Array.isArray(params.next) ? params.next[0] : params.next
+  const sessionId = Array.isArray(params.session_id) ? params.session_id[0] : params.session_id
   const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : ""
 
   return (
@@ -18,9 +20,18 @@ export default async function PaymentSuccessPage({ searchParams }: PaymentSucces
 
         <h1 className="mt-6 text-3xl font-extrabold">Payment Successful</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Stripe confirmed your payment. Your Premium listing or credits will be
-          applied automatically by the webhook.
+          Stripe confirmed your payment. We are applying your Premium listing or
+          credits now.
         </p>
+
+        {sessionId ? (
+          <PaymentSuccessStatus sessionId={sessionId} />
+        ) : (
+          <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+            Your payment was completed. If your account has not updated yet, please
+            check again in a moment.
+          </p>
+        )}
 
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
           {safeNext ? (

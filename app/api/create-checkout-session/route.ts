@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         cancelUrl: `${origin}/payment/cancelled`,
         productName: "AutoDeal.ie Premium",
         amountCents: PREMIUM_BOOST.priceCents,
-        priceId: getStripePriceId("STRIPE_PRICE_PREMIUM_BOOST", PREMIUM_BOOST.stripePriceId),
+        priceId: getStripePriceId("STRIPE_PRICE_PREMIUM_BOOST"),
         metadata: {
           user_id: user.id,
           listing_id: body.listing_id,
@@ -129,8 +129,7 @@ export async function POST(request: Request) {
         priceId: getStripePriceId(
           pack.key === PREMIUM_BOOST.key
             ? "STRIPE_PRICE_PREMIUM_BOOST"
-            : `STRIPE_PRICE_${pack.key.toUpperCase()}`,
-          pack.stripePriceId
+            : `STRIPE_PRICE_${pack.key.toUpperCase()}`
         ),
         metadata: {
           user_id: user.id,
@@ -169,8 +168,8 @@ export async function POST(request: Request) {
   }
 }
 
-function getStripePriceId(envName: string, fallback: string) {
-  return process.env[envName] || fallback
+function getStripePriceId(envName: string) {
+  return process.env[envName]
 }
 
 

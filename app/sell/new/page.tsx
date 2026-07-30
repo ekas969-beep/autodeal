@@ -160,6 +160,8 @@ function SellNewContent() {
   const [successListingId, setSuccessListingId] = useState<string | null>(null)
   const [pendingPayment, setPendingPayment] = useState(false)
   const [creditsBalance, setCreditsBalance] = useState(0)
+  const [premiumAccessChecked, setPremiumAccessChecked] = useState(!isPremiumPlan)
+  const [premiumAccessError, setPremiumAccessError] = useState("")
 
   const [draftId, setDraftId] = useState("")
   const [draftLoaded, setDraftLoaded] = useState(false)
@@ -251,12 +253,19 @@ function SellNewContent() {
   }, [searchParams])
 
   useEffect(() => {
+    let isMounted = true
+
     async function loadCredits() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) return
+      if (!user) {
+        if (isPremiumPlan) {
+          router.replace("/login")
+        }
+        return
+      }
 
       const {
         data: { session },
@@ -275,11 +284,52 @@ function SellNewContent() {
         .eq("id", user.id)
         .maybeSingle()
 
-      setCreditsBalance(Number(data?.credits_balance || 0))
+      const balance = Number(data?.credits_balance || 0)
+
+      if (!isMounted) return
+
+      setCreditsBalance(balance)
+
+      if (isPremiumPlan && balance < PREMIUM_BOOST.creditsRequired) {
+        if (!session?.access_token) {
+          router.replace("/login")
+          return
+        }
+
+        const checkoutResponse = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            type: "dealer_credit_pack",
+            plan_key: PREMIUM_BOOST.key,
+          }),
+        })
+
+        const checkout = await checkoutResponse.json().catch(() => null)
+
+        if (!isMounted) return
+
+        if (!checkoutResponse.ok || !checkout?.url) {
+          setPremiumAccessError(checkout?.error || "Could not start Premium checkout.")
+          return
+        }
+
+        window.location.assign(checkout.url)
+        return
+      }
+
+      setPremiumAccessChecked(true)
     }
 
     loadCredits()
-  }, [])
+
+    return () => {
+      isMounted = false
+    }
+  }, [isPremiumPlan, router])
 
   useEffect(() => {
     const urls = images.map((image) => URL.createObjectURL(image))
@@ -543,6 +593,10 @@ function SellNewContent() {
       removeSubmittedDrafts(draftId, String(formData.get("title") || "").trim(), make, model)
 
       if (isPremiumPlan) {
+        if (creditsBalance < PREMIUM_BOOST.creditsRequired) {
+          throw new Error("Please complete the Premium payment before creating this listing.")
+        }
+
         const wantsToUseCredit =
           creditsBalance >= PREMIUM_BOOST.creditsRequired &&
           window.confirm("Use 1 credit to create this Premium paid listing?")
@@ -622,6 +676,32 @@ function SellNewContent() {
       setLoading(false)
       setPendingPayment(false)
     }
+  }
+
+  if (!premiumAccessChecked) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 py-16 text-slate-950">
+        <section className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+            {premiumAccessError ? "Premium checkout" : "Checking Premium access"}
+          </p>
+          <h1 className="mt-3 text-3xl font-extrabold">Please wait</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            {premiumAccessError ||
+              "We are checking your paid Premium credit before opening the listing form."}
+          </p>
+          {premiumAccessError ? (
+            <button
+              type="button"
+              onClick={() => router.push("/sell")}
+              className="mt-6 h-12 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white hover:bg-blue-700"
+            >
+              Back to plans
+            </button>
+          ) : null}
+        </section>
+      </main>
+    )
   }
 
   return (

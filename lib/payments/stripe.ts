@@ -2,11 +2,13 @@ import { createHmac, timingSafeEqual } from "crypto"
 
 export type StripeCheckoutSession = {
   id: string
-  url: string | null
-  amount_total: number | null
-  currency: string | null
-  payment_intent: string | null
+  url?: string | null
+  amount_total?: number | null
+  currency?: string | null
+  payment_intent?: string | null
   metadata?: Record<string, string>
+  payment_status?: string
+  status?: string
 }
 
 type CheckoutSessionInput = {
@@ -32,7 +34,7 @@ export async function createStripeCheckoutSession({
     throw new Error("Missing STRIPE_SECRET_KEY.")
   }
 
-  const shouldUseSavedPrice = Boolean(priceId) && !secretKey.startsWith("sk_test_")
+  const shouldUseSavedPrice = Boolean(priceId)
 
   const body = new URLSearchParams()
   body.set("mode", "payment")
