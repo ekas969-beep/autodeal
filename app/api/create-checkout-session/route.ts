@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as CheckoutRequest
-    const origin = new URL(request.url).origin
+    const origin = getCheckoutOrigin(request)
     const supabaseAdmin = createSupabaseAdmin()
 
     if (body.type === "premium_boost") {
@@ -170,6 +170,33 @@ export async function POST(request: Request) {
 
 function getStripePriceId(envName: string) {
   return process.env[envName]
+}
+
+function getCheckoutOrigin(request: Request) {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, "")
+  }
+
+  const forwardedHost = request.headers.get("x-forwarded-host")
+  const forwardedProto = request.headers.get("x-forwarded-proto") || "https"
+
+  if (forwardedHost && !forwardedHost.startsWith("0.0.0.0")) {
+    return `${forwardedProto}://${forwardedHost}`
+  }
+
+  const host = request.headers.get("host")
+
+  if (host && !host.startsWith("0.0.0.0")) {
+    return `${forwardedProto}://${host}`
+  }
+
+  return "https://autodeal.ie"
 }
 
 
