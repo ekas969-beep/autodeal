@@ -454,10 +454,14 @@ export default function AccountPage() {
                   </div>
 
                   <Link
-                    href="/sell"
+                    href={
+                      creditsBalance > 0
+                        ? "/sell/new?plan=premium"
+                        : "/sell"
+                    }
                     className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white hover:bg-blue-700"
                   >
-                    Buy Credits
+                    {creditsBalance > 0 ? "Place Ad Premium" : "Place Ad"}
                   </Link>
                 </div>
 

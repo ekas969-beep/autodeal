@@ -21,7 +21,7 @@ const termsSections = [
   {
     title: "3. Intellectual Property",
     body: [
-      "The content, design, logos, and software on AutoDeal.ie are the property of Bidauto Ltd and are protected by intellectual property laws. You may not copy, modify, distribute, or reproduce any part of our platform without our express written consent.",
+      "The content, design, logos, and software on AutoDeal.ie are the property of AutoDeal and are protected by intellectual property laws. You may not copy, modify, distribute, or reproduce any part of our platform without our express written consent.",
       "By uploading content, such as photos and vehicle descriptions, to AutoDeal.ie, you grant us a non-exclusive, worldwide, royalty-free license to use, display, and distribute that content in connection with our services.",
     ],
   },
@@ -35,7 +35,7 @@ const termsSections = [
   {
     title: "5. Limitation of Liability",
     body: [
-      "To the fullest extent permitted by law, AutoDeal.ie and Bidauto Ltd shall not be liable for any direct, indirect, incidental, consequential, or punitive damages arising from your use of the platform, your inability to use the platform, or any transactions conducted through the platform.",
+      "To the fullest extent permitted by law, AutoDeal.ie and AutoDeal shall not be liable for any direct, indirect, incidental, consequential, or punitive damages arising from your use of the platform, your inability to use the platform, or any transactions conducted through the platform.",
       "This includes, but is not limited to, losses from fraud, inaccurate listings, or technical issues.",
     ],
   },
@@ -145,7 +145,7 @@ export default function TermsPage() {
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="font-black text-slate-950">Company</p>
-                <p className="mt-1">Bidauto Ltd</p>
+                <p className="mt-1">AutoDeal</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="font-black text-slate-950">Address</p>

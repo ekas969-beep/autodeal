@@ -2,7 +2,7 @@
 
 export const metadata = {
   title: "Privacy Policy - AutoDeal.ie",
-  description: "Privacy Policy for AutoDeal.ie, operated by Bidauto Ltd.",
+  description: "Privacy Policy for AutoDeal.ie, operated by AutoDeal.",
 }
 
 type PolicyGroup = {
@@ -164,7 +164,7 @@ export default function PrivacyPolicyPage() {
                 Controller
               </p>
               <p className="mt-2 text-lg font-extrabold text-slate-950">
-                AutoDeal.ie (Bidauto Ltd)
+                AutoDeal.ie (AutoDeal)
               </p>
             </div>
           </div>
@@ -238,7 +238,7 @@ export default function PrivacyPolicyPage() {
                     Company
                   </p>
                   <p className="mt-2 font-extrabold text-slate-950">
-                    Bidauto Ltd
+                    AutoDeal
                   </p>
                 </div>
                 <div className="rounded-2xl border border-white bg-white/80 p-5">

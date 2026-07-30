@@ -20,7 +20,7 @@ export default function SiteFooter() {
             </p>
 
             <div className="mt-6 space-y-2 text-sm font-semibold text-[#64748B]">
-              <p>Bidauto Ltd</p>
+              <p>AutoDeal</p>
               <p>Kilkenny, Ireland</p>
               <p>support@autodeal.ie</p>
             </div>
@@ -59,7 +59,7 @@ export default function SiteFooter() {
         </div>
 
         <div className="mt-12 border-t border-slate-200 pt-8 text-center text-xs font-medium text-[#64748B]">
-          © 2026 AutoDeal.ie (Bidauto Ltd). All rights reserved. Registered in Ireland.
+          © 2026 AutoDeal.ie (AutoDeal). All rights reserved. Registered in Ireland.
         </div>
       </div>
     </footer>
