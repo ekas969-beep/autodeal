@@ -173,30 +173,51 @@ function getStripePriceId(envName: string) {
 }
 
 function getCheckoutOrigin(request: Request) {
+  const productionOrigin = "https://autodeal.ie"
   const configuredUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.APP_URL
 
-  if (configuredUrl) {
+  if (configuredUrl && isPublicCheckoutOrigin(configuredUrl)) {
     return configuredUrl.replace(/\/$/, "")
   }
 
   const forwardedHost = request.headers.get("x-forwarded-host")
   const forwardedProto = request.headers.get("x-forwarded-proto") || "https"
 
-  if (forwardedHost && !forwardedHost.startsWith("0.0.0.0")) {
-    return `${forwardedProto}://${forwardedHost}`
+  const forwardedOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : ""
+
+  if (isPublicCheckoutOrigin(forwardedOrigin)) {
+    return forwardedOrigin
   }
 
   const host = request.headers.get("host")
+  const hostOrigin = host ? `${forwardedProto}://${host}` : ""
 
-  if (host && !host.startsWith("0.0.0.0")) {
-    return `${forwardedProto}://${host}`
+  if (isPublicCheckoutOrigin(hostOrigin)) {
+    return hostOrigin
   }
 
-  return "https://autodeal.ie"
+  return productionOrigin
+}
+
+function isPublicCheckoutOrigin(value: string) {
+  try {
+    const url = new URL(value)
+    const hostname = url.hostname.toLowerCase()
+
+    return (
+      url.protocol === "https:" &&
+      hostname !== "0.0.0.0" &&
+      hostname !== "localhost" &&
+      !hostname.startsWith("127.") &&
+      !hostname.endsWith(".local")
+    )
+  } catch {
+    return false
+  }
 }
 
 
