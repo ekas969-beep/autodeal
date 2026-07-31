@@ -78,17 +78,23 @@ export async function POST(request: Request) {
 
   const listingId = extractListingId(url)
   const apiListing = await fetchDoneDealListingApi(listingId, url)
+
+  if (apiListing) {
+    const listing = await parseDoneDealHtml("", url, apiListing)
+    return NextResponse.json({ ok: true, listing })
+  }
+
   const response = await fetchDoneDealHtml(url)
 
-  if (!response?.ok && !apiListing) {
+  if (!response?.ok) {
     return NextResponse.json(
       { ok: false, error: "DoneDeal did not allow this listing to be read." },
       { status: 502 }
     )
   }
 
-  const html = response?.ok ? await response.text() : ""
-  const listing = await parseDoneDealHtml(html, url, apiListing)
+  const html = await response.text()
+  const listing = await parseDoneDealHtml(html, url, null)
 
   return NextResponse.json({ ok: true, listing })
 }
