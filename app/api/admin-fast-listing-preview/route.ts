@@ -24,6 +24,44 @@ type AdminResult =
 
 type JsonRecord = Record<string, unknown>
 
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const image = normalizeUrl(url.searchParams.get("image") || "")
+
+  if (!isDoneDealMediaImage(image)) {
+    return NextResponse.json({ ok: false, error: "Invalid image URL." }, { status: 400 })
+  }
+
+  try {
+    const response = await fetch(image, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36",
+        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        Referer: "https://www.donedeal.ie/",
+      },
+    })
+
+    if (!response.ok) {
+      return NextResponse.json({ ok: false, error: "Could not read image." }, { status: 502 })
+    }
+
+    const contentType = response.headers.get("content-type") || "image/jpeg"
+    if (!contentType.toLowerCase().startsWith("image/")) {
+      return NextResponse.json({ ok: false, error: "Invalid image response." }, { status: 400 })
+    }
+
+    return new Response(response.body, {
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "private, no-store",
+      },
+    })
+  } catch {
+    return NextResponse.json({ ok: false, error: "Could not read image." }, { status: 502 })
+  }
+}
+
 export async function POST(request: Request) {
   const admin = await requireAdmin(request)
   if (!admin.ok) return admin.response
@@ -57,7 +95,7 @@ export async function POST(request: Request) {
   const html = await response.text()
   const listingId = extractListingId(url)
   const apiListing = await fetchDoneDealListingApi(listingId, url)
-  const listing = parseDoneDealHtml(html, url, apiListing)
+  const listing = await parseDoneDealHtml(html, url, apiListing)
 
   return NextResponse.json({ ok: true, listing })
 }
@@ -116,7 +154,7 @@ async function fetchDoneDealListingApi(listingId: string, sourceUrl: string) {
   }
 }
 
-function parseDoneDealHtml(html: string, sourceUrl: string, apiListing: unknown) {
+async function parseDoneDealHtml(html: string, sourceUrl: string, apiListing: unknown) {
   const listingId = extractListingId(sourceUrl)
   const jsonRoots = [apiListing, ...readJsonRoots(html)].filter(Boolean)
   const listingObjects = findListingObjects(jsonRoots, listingId)
@@ -137,7 +175,7 @@ function parseDoneDealHtml(html: string, sourceUrl: string, apiListing: unknown)
     extractVisiblePrice(lines) ||
     firstJsonString(relevantRoots, ["price", "amount"]) ||
     metaTitle
-  const contactPhone = choosePhone(relevantRoots, lines, specs)
+  const contactPhone = choosePhone(relevantRoots, specs)
 
   return {
     sourceUrl,
@@ -147,20 +185,20 @@ function parseDoneDealHtml(html: string, sourceUrl: string, apiListing: unknown)
     model: vehicle.model,
     year: String(extractYear(specs.year || title) || ""),
     mileage: String(extractMileage(specs.mileage || description || "") || ""),
-    fuel: clean(specs.fuel || specs.fuelType || ""),
-    transmission: clean(specs.transmission || ""),
-    bodyType: clean(specs.bodyType || specs.body || ""),
-    color: clean(specs.color || specs.colour || ""),
+    fuel: cleanImportedValue(specs.fuel || specs.fuelType || ""),
+    transmission: cleanImportedValue(specs.transmission || ""),
+    bodyType: cleanImportedValue(specs.bodyType || specs.body || ""),
+    color: cleanImportedValue(specs.color || specs.colour || ""),
     location: chooseLocation(relevantRoots, lines, specs),
     engineSize: normalizeEngineSize(specs.engineSize || specs.engine || ""),
-    previousOwners: clean(specs.owners || specs.previousOwners || ""),
+    previousOwners: cleanImportedValue(specs.owners || specs.previousOwners || ""),
     nctExpiry: normalizeNctDate(specs.nct || specs.nctExpiry || description),
-    doors: clean(specs.doors || ""),
-    seats: clean(specs.seats || ""),
+    doors: cleanImportedValue(specs.doors || ""),
+    seats: cleanImportedValue(specs.seats || ""),
     contactPhone,
     phoneNotice: contactPhone ? "" : choosePhoneNotice(relevantRoots),
     description,
-    images: extractImages(html, relevantRoots),
+    images: await extractImages(html, relevantRoots),
   }
 }
 
@@ -295,6 +333,8 @@ function extractSpecsFromLines(lines: string[]) {
     const field = normalizeSpecLabel(lines[index])
     const next = lines[index + 1]
 
+    if (field && normalizeSpecLabel(next)) continue
+
     if (field && isUsefulSpecValue(next)) {
       setSpec(specs, field, next)
     }
@@ -304,10 +344,18 @@ function extractSpecsFromLines(lines: string[]) {
 }
 
 function setSpec(specs: Record<string, string>, field: string, value: string) {
-  const cleaned = clean(value)
+  const cleaned = cleanImportedValue(value)
   if (!cleaned || cleaned.length > 90) return
   if (looksLikePageNoise(cleaned)) return
   specs[field] = cleaned
+}
+
+function cleanImportedValue(value: unknown) {
+  const text = clean(value)
+  if (!text) return ""
+  if (normalizeSpecLabel(text)) return ""
+
+  return text
 }
 
 function normalizeSpecLabel(value: unknown) {
@@ -461,7 +509,7 @@ function locationScore(value: string) {
   return score
 }
 
-function choosePhone(roots: unknown[], lines: string[], specs: Record<string, string>) {
+function choosePhone(roots: unknown[], specs: Record<string, string>) {
   const specPhone = cleanPhone(specs.phone || "")
   if (specPhone) return specPhone
 
@@ -475,7 +523,7 @@ function choosePhone(roots: unknown[], lines: string[], specs: Record<string, st
     if (phone) return phone
   }
 
-  return cleanPhone(lines.join(" "))
+  return ""
 }
 
 function choosePhoneNotice(roots: unknown[]) {
@@ -607,7 +655,7 @@ function extractVisibleLocation(lines: string[]) {
   return ""
 }
 
-function extractImages(html: string, roots: unknown[]) {
+async function extractImages(html: string, roots: unknown[]) {
   const byKey = new Map<string, string>()
 
   for (const root of roots) {
@@ -656,10 +704,69 @@ function addImage(byKey: Map<string, string>, value: string) {
 function imageKey(url: string) {
   try {
     const parsed = new URL(url)
+    const doneDealKey = readDoneDealMediaKey(parsed)
+    if (doneDealKey) return doneDealKey
+
     return parsed.origin + parsed.pathname
   } catch {
     return url.split("?")[0]
   }
+}
+
+function readDoneDealMediaKey(url: URL) {
+  for (const segment of url.pathname.split("/").filter(Boolean)) {
+    const decoded = decodeBase64UrlJson(segment)
+    const key = findMediaObjectKey(decoded)
+
+    if (key) return key.toLowerCase()
+  }
+
+  return ""
+}
+
+function decodeBase64UrlJson(value: string): unknown {
+  try {
+    const normalized = decodeURIComponent(value)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf8"))
+  } catch {
+    return null
+  }
+}
+
+function findMediaObjectKey(value: unknown): string {
+  if (!value || typeof value !== "object") return ""
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findMediaObjectKey(item)
+      if (found) return found
+    }
+    return ""
+  }
+
+  const object = value as JsonRecord
+  const directKeys = ["key", "path", "objectKey", "object_key", "imageKey", "image_key"]
+
+  for (const key of directKeys) {
+    const item = object[key]
+    if (typeof item === "string" && looksLikeMediaObjectKey(item)) {
+      return item
+    }
+  }
+
+  for (const item of Object.values(object)) {
+    const found = findMediaObjectKey(item)
+    if (found) return found
+  }
+
+  return ""
+}
+
+function looksLikeMediaObjectKey(value: string) {
+  return /(?:photos?|images?)\//i.test(value) || /\.(?:jpe?g|png|webp)(?:$|\?)/i.test(value)
 }
 
 function isDoneDealMediaImage(value: string) {
@@ -832,22 +939,33 @@ function cleanCounty(value: string) {
 
 function cleanPhone(value: unknown) {
   const text = clean(value)
-  const patterns = [
-    /(?:\+353|00353|0)\s?8[356789](?:[\s-]?\d){7}\b/g,
-    /(?:\+353|00353|0)\s?[1-9]\d?(?:[\s-]?\d){6,8}\b/g,
-  ]
+  const patterns = [/(?:\+353|00353|0)\s?8[356789](?:[\s-]?\d){7}\b/g]
 
   for (const pattern of patterns) {
     const matches = text.match(pattern) || []
     for (const match of matches) {
-      const phone = match
-        .replace(/[^\d+ -]/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-
-      const digits = phone.replace(/\D/g, "")
-      if (digits.length >= 9 && digits.length <= 13) return phone.slice(0, 40)
+      const phone = formatIrishMobilePhone(match)
+      if (phone) return phone
     }
+  }
+
+  return ""
+}
+
+function formatIrishMobilePhone(value: string) {
+  const hasInternationalPrefix = /^\s*(?:\+353|00353)/.test(value)
+  const digits = value.replace(/\D/g, "")
+
+  if (/^08[356789]\d{7}$/.test(digits)) {
+    return hasInternationalPrefix ? `+353 ${digits.slice(1, 3)} ${digits.slice(3)}` : digits
+  }
+
+  if (/^3538[356789]\d{7}$/.test(digits)) {
+    return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5)}`
+  }
+
+  if (/^003538[356789]\d{7}$/.test(digits)) {
+    return `+353 ${digits.slice(5, 7)} ${digits.slice(7)}`
   }
 
   return ""
@@ -862,7 +980,15 @@ function escapeRegExp(value: string) {
 }
 
 function clean(value: unknown) {
-  return decode(String(value || "")).replace(/\s+/g, " ").trim()
+  const text = decode(String(value || "")).replace(/\s+/g, " ").trim()
+  if (isEmptyPlaceholder(text)) return ""
+
+  return text
+}
+
+function isEmptyPlaceholder(value: string) {
+  const normalized = value.replace(/\s/g, "")
+  return /^[-–—]+$/.test(normalized) || /^n\/?a$/i.test(normalized)
 }
 
 function readMeta(html: string, name: string) {

@@ -82,12 +82,12 @@ export async function POST(request: Request) {
           location: clean(body.location),
           engine_size: emptyToNull(normalizeEngineSize(body.engineSize)),
           engine_power: emptyToNull(body.enginePower),
-          previous_owners: emptyToNull(body.previousOwners),
+          previous_owners: toNumber(body.previousOwners),
           nct_expiry: emptyToNull(body.nctExpiry),
           tax_expiry: null,
           annual_tax: null,
-          doors: emptyToNull(body.doors),
-          seats: emptyToNull(body.seats),
+          doors: toNumber(body.doors),
+          seats: toNumber(body.seats),
           registration_country: "Ireland",
           vin: "",
           seller_type: "Dealership",
@@ -237,7 +237,44 @@ function throwIfAborted(signal: AbortSignal) {
 
 
 function clean(value: unknown) {
-  return String(value || "").trim().slice(0, 10000)
+  const text = String(value || "").trim()
+  if (isEmptyPlaceholder(text)) return ""
+  if (isImportedLabelPlaceholder(text)) return ""
+
+  return text.slice(0, 10000)
+}
+
+function isEmptyPlaceholder(value: string) {
+  const normalized = value.replace(/\s/g, "")
+  return /^[-–—]+$/.test(normalized) || /^n\/?a$/i.test(normalized)
+}
+
+function isImportedLabelPlaceholder(value: string) {
+  const label = value.toLowerCase().replace(/[^a-z0-9]+/g, "")
+  return [
+    "make",
+    "model",
+    "year",
+    "price",
+    "mileage",
+    "fuel",
+    "fueltype",
+    "transmission",
+    "body",
+    "bodytype",
+    "colour",
+    "color",
+    "location",
+    "county",
+    "engine",
+    "enginesize",
+    "totalowners",
+    "previousowners",
+    "nct",
+    "nctexpiry",
+    "doors",
+    "seats",
+  ].includes(label)
 }
 
 function normalizeEngineSize(value: unknown) {

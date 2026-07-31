@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { finishAuthFromCurrentUrl } from "@/lib/auth-url"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,19 +17,19 @@ export default function LoginPage() {
   const [message, setMessage] = useState("")
 
   useEffect(() => {
-    const search = new URLSearchParams(window.location.search)
-    const hash = new URLSearchParams(window.location.hash.slice(1))
-    const authError =
-      search.get("error_description") ||
-      search.get("error") ||
-      hash.get("error_description") ||
-      hash.get("error")
-
-    if (authError) {
-      setError(authError)
-    }
-
     async function checkSession() {
+      const authResult = await finishAuthFromCurrentUrl(supabase)
+
+      if (!authResult.ok) {
+        setError(authResult.error)
+      }
+
+      if (authResult.ok && authResult.completed) {
+        router.replace("/account")
+        router.refresh()
+        return
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession()

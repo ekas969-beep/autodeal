@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { finishAuthFromCurrentUrl } from "@/lib/auth-url"
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -10,32 +11,16 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     async function finishSignIn() {
-      const searchParams = new URLSearchParams(window.location.search)
       const next = getSafeNextPath(sessionStorage.getItem("autodeal-auth-next"))
-      const errorDescription =
-        searchParams.get("error_description") ||
-        searchParams.get("error") ||
-        readHashParam("error_description") ||
-        readHashParam("error")
+      const authResult = await finishAuthFromCurrentUrl(supabase)
 
-      if (errorDescription) {
+      if (!authResult.ok) {
         sessionStorage.removeItem("autodeal-auth-next")
-        router.replace(`/login?error=${encodeURIComponent(errorDescription)}`)
+        router.replace(`/login?error=${encodeURIComponent(authResult.error)}`)
         return
       }
 
-      const code = searchParams.get("code")
-
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-        if (error) {
-          sessionStorage.removeItem("autodeal-auth-next")
-          setMessage("Could not finish Google sign in. Returning to login...")
-          router.replace(`/login?error=${encodeURIComponent(error.message)}`)
-          return
-        }
-      } else {
+      if (!authResult.completed) {
         const {
           data: { session },
         } = await supabase.auth.getSession()
@@ -71,10 +56,4 @@ function getSafeNextPath(next: string | null) {
   }
 
   return next
-}
-
-function readHashParam(key: string) {
-  if (typeof window === "undefined" || !window.location.hash) return ""
-
-  return new URLSearchParams(window.location.hash.slice(1)).get(key) || ""
 }

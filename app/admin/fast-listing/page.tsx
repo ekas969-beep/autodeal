@@ -114,6 +114,41 @@ function getVisibleImageGroups(
   return { visible, lowQuality, duplicates }
 }
 
+function dedupeImageUrls(images: string[]) {
+  const seen = new Set<string>()
+  const unique: string[] = []
+
+  for (const image of images) {
+    const key = getImageKey(image)
+    if (seen.has(key)) continue
+
+    seen.add(key)
+    unique.push(image)
+  }
+
+  return collapseDoneDealImagePairs(unique)
+}
+
+function collapseDoneDealImagePairs(images: string[]) {
+  if (images.length < 12 || images.some((image) => !isDoneDealImageUrl(image))) return images
+
+  const collapsed: string[] = []
+
+  for (let index = 0; index < images.length; index += 2) {
+    collapsed.push(images[index])
+  }
+
+  return collapsed
+}
+
+function isDoneDealImageUrl(image: string) {
+  try {
+    return new URL(normalizeImageUrl(image)).hostname.toLowerCase() === "media.donedeal.ie"
+  } catch {
+    return false
+  }
+}
+
 export default function AdminFastListingPage() {
   const router = useRouter()
   const [sourceUrl, setSourceUrl] = useState("")
@@ -187,8 +222,17 @@ export default function AdminFastListingPage() {
       return
     }
 
-    setDraft({ ...emptyDraft, ...result.listing })
+    const listingImages = Array.isArray(result.listing.images) ? result.listing.images : []
+    setDraft({ ...emptyDraft, ...result.listing, images: dedupeImageUrls(listingImages) })
     setLoading(false)
+  }
+
+  async function pasteListingUrl() {
+    try {
+      const text = await navigator.clipboard.readText()
+      const url = extractDoneDealUrl(text)
+      setSourceUrl(url || text.trim())
+    } catch {}
   }
 
   async function createListing(event: FormEvent<HTMLFormElement>) {
@@ -291,6 +335,7 @@ export default function AdminFastListingPage() {
       setSelectedImages([])
       setImageQualityByUrl({})
       setImageFingerprintByUrl({})
+      window.scrollTo({ top: 0, behavior: "smooth" })
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         setError("Upload cancelled.")
@@ -317,6 +362,7 @@ export default function AdminFastListingPage() {
       .split(/\r?\n/)
       .map((item) => item.trim())
       .filter(Boolean)
+      .filter((item, index, all) => all.findIndex((other) => getImageKey(other) === getImageKey(item)) === index)
 
     setDraft((current) => ({
       ...current,
@@ -493,6 +539,13 @@ export default function AdminFastListingPage() {
                 className="h-12 flex-1 rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50"
               />
               <button
+                type="button"
+                onClick={pasteListingUrl}
+                className="h-12 rounded-xl border border-blue-200 bg-blue-50 px-5 text-sm font-bold text-blue-700 hover:bg-blue-100"
+              >
+                Paste link
+              </button>
+              <button
                 type="submit"
                 disabled={loading}
                 className="h-12 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60"
@@ -523,7 +576,7 @@ export default function AdminFastListingPage() {
               <Field label="NCT Expiry" value={draft.nctExpiry} onChange={(value) => updateField("nctExpiry", value)} />
               <Field label="Doors" value={draft.doors} onChange={(value) => updateField("doors", value)} />
               <Field label="Seats" value={draft.seats} onChange={(value) => updateField("seats", value)} />
-              <Field
+              <PhoneField
                 label="Phone Number"
                 value={draft.contactPhone}
                 onChange={(value) => updateField("contactPhone", value)}
@@ -600,14 +653,6 @@ export default function AdminFastListingPage() {
               )}
             </div>
 
-            <textarea
-              value={draft.images.join("\n")}
-              onChange={(event) => updateImages(event.target.value)}
-              rows={6}
-              placeholder="One image URL per line"
-              className="mt-5 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50"
-            />
-
             {visibleImages.length > 0 && (
               <div className="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {visibleImages.map((image, index) => (
@@ -633,7 +678,6 @@ export default function AdminFastListingPage() {
                           Main photo
                         </span>
                       )}
-                      <ImageQualityBadge info={imageQualityByUrl[image]} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 p-3">
                       <button
@@ -794,6 +838,88 @@ function Field({
   )
 }
 
+function PhoneField({
+  label,
+  value,
+  onChange,
+  helpText = "",
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  helpText?: string
+}) {
+  async function pastePhone() {
+    try {
+      const text = await navigator.clipboard.readText()
+      const phone = extractPhoneFromText(text)
+      onChange(phone || text.trim())
+    } catch {
+      onChange(value)
+    }
+  }
+
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-bold">{label}</span>
+      <div className="flex gap-2">
+        <input
+          value={value}
+          onChange={(event) => onChange(extractPhoneFromText(event.target.value) || event.target.value)}
+          className="h-12 min-w-0 flex-1 rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50"
+        />
+        <button
+          type="button"
+          onClick={pastePhone}
+          className="h-12 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
+        >
+          Paste phone
+        </button>
+      </div>
+      {helpText && <span className="text-xs font-semibold leading-5 text-amber-700">{helpText}</span>}
+    </label>
+  )
+}
+
+function extractPhoneFromText(value: string) {
+  const text = String(value || "")
+  const patterns = [/(?:\+353|00353|0)\s?8[356789](?:[\s-]?\d){7}\b/g]
+
+  for (const pattern of patterns) {
+    const matches = text.match(pattern) || []
+    for (const match of matches) {
+      const phone = formatIrishMobilePhone(match)
+      if (phone) return phone
+    }
+  }
+
+  return ""
+}
+
+function formatIrishMobilePhone(value: string) {
+  const hasInternationalPrefix = /^\s*(?:\+353|00353)/.test(value)
+  const digits = value.replace(/\D/g, "")
+
+  if (/^08[356789]\d{7}$/.test(digits)) {
+    return hasInternationalPrefix ? `+353 ${digits.slice(1, 3)} ${digits.slice(3)}` : digits
+  }
+
+  if (/^3538[356789]\d{7}$/.test(digits)) {
+    return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5)}`
+  }
+
+  if (/^003538[356789]\d{7}$/.test(digits)) {
+    return `+353 ${digits.slice(5, 7)} ${digits.slice(7)}`
+  }
+
+  return ""
+}
+
+function extractDoneDealUrl(value: string) {
+  const match = String(value || "").match(/https?:\/\/(?:www\.)?donedeal\.ie\/[^\s"'<>]+/i)
+  return match?.[0]?.replace(/[),.;]+$/g, "") || ""
+}
+
 
 function SelectField({
   label,
@@ -825,57 +951,6 @@ function SelectField({
   )
 }
 
-function ImageQualityBadge({ info }: { info?: ImageQualityInfo }) {
-  if (!info) {
-    return (
-      <span className="absolute bottom-3 left-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-bold text-white">
-        Checking size...
-      </span>
-    )
-  }
-
-  const quality = getImageQuality(info)
-
-  return (
-    <span
-      className={`absolute bottom-3 left-3 rounded-full px-3 py-1 text-xs font-bold shadow-sm ring-1 ${quality.classes}`}
-      title={`${info.width} x ${info.height} pixels`}
-    >
-      {quality.label} · {info.width}x{info.height}
-    </span>
-  )
-}
-
-function getImageQuality(info: ImageQualityInfo) {
-  const area = info.width * info.height
-
-  if (info.width >= 1600 || area >= 1500000) {
-    return {
-      label: "Best",
-      classes: "bg-emerald-600 text-white ring-emerald-700/20",
-    }
-  }
-
-  if ((info.width >= 1200 && info.height >= 800) || area >= 900000) {
-    return {
-      label: "Large",
-      classes: "bg-green-100 text-green-800 ring-green-200",
-    }
-  }
-
-  if ((info.width >= 800 && info.height >= 600) || area >= 480000) {
-    return {
-      label: "OK",
-      classes: "bg-amber-100 text-amber-900 ring-amber-200",
-    }
-  }
-
-  return {
-    label: "Small",
-    classes: "bg-red-100 text-red-700 ring-red-200",
-  }
-}
-
 function isLowResolutionImage(info?: ImageQualityInfo) {
   if (!info) return false
 
@@ -884,7 +959,7 @@ function isLowResolutionImage(info?: ImageQualityInfo) {
 
 async function getImageFingerprint(src: string) {
   try {
-    const image = await loadImage(src)
+    const image = await loadImage(`/api/admin-fast-listing-preview?image=${encodeURIComponent(src)}`)
     const canvas = document.createElement("canvas")
     const size = 8
     canvas.width = size
@@ -936,6 +1011,9 @@ function getImageKey(value: string) {
 
   try {
     const url = new URL(normalized)
+    const doneDealKey = readDoneDealMediaKey(url)
+    if (doneDealKey) return doneDealKey
+
     const params = new URLSearchParams(url.search)
     params.delete("signature")
     params.delete("expires")
@@ -946,6 +1024,62 @@ function getImageKey(value: string) {
   } catch {
     return normalized.split("?signature=")[0].toLowerCase()
   }
+}
+
+function readDoneDealMediaKey(url: URL) {
+  for (const segment of url.pathname.split("/").filter(Boolean)) {
+    const decoded = decodeBase64UrlJson(segment)
+    const key = findMediaObjectKey(decoded)
+
+    if (key) return key.toLowerCase()
+  }
+
+  return ""
+}
+
+function decodeBase64UrlJson(value: string): unknown {
+  try {
+    const normalized = decodeURIComponent(value)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")
+    return JSON.parse(atob(padded))
+  } catch {
+    return null
+  }
+}
+
+function findMediaObjectKey(value: unknown): string {
+  if (!value || typeof value !== "object") return ""
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findMediaObjectKey(item)
+      if (found) return found
+    }
+    return ""
+  }
+
+  const object = value as Record<string, unknown>
+  const directKeys = ["key", "path", "objectKey", "object_key", "imageKey", "image_key"]
+
+  for (const key of directKeys) {
+    const item = object[key]
+    if (typeof item === "string" && looksLikeMediaObjectKey(item)) {
+      return item
+    }
+  }
+
+  for (const item of Object.values(object)) {
+    const found = findMediaObjectKey(item)
+    if (found) return found
+  }
+
+  return ""
+}
+
+function looksLikeMediaObjectKey(value: string) {
+  return /(?:photos?|images?)\//i.test(value) || /\.(?:jpe?g|png|webp)(?:$|\?)/i.test(value)
 }
 
 function normalizeImageUrl(value: string) {
