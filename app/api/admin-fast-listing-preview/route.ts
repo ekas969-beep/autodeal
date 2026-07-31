@@ -76,28 +76,43 @@ export async function POST(request: Request) {
     )
   }
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "en-IE,en;q=0.9",
-    },
-  })
+  const listingId = extractListingId(url)
+  const apiListing = await fetchDoneDealListingApi(listingId, url)
+  const response = await fetchDoneDealHtml(url)
 
-  if (!response.ok) {
+  if (!response?.ok && !apiListing) {
     return NextResponse.json(
       { ok: false, error: "DoneDeal did not allow this listing to be read." },
       { status: 502 }
     )
   }
 
-  const html = await response.text()
-  const listingId = extractListingId(url)
-  const apiListing = await fetchDoneDealListingApi(listingId, url)
+  const html = response?.ok ? await response.text() : ""
   const listing = await parseDoneDealHtml(html, url, apiListing)
 
   return NextResponse.json({ ok: true, listing })
+}
+
+async function fetchDoneDealHtml(url: string) {
+  try {
+    return await fetch(url, {
+      headers: doneDealHtmlHeaders(url),
+    })
+  } catch {
+    return null
+  }
+}
+
+function doneDealHtmlHeaders(url: string) {
+  return {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-IE,en;q=0.9",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+    Referer: new URL(url).origin,
+  }
 }
 
 async function requireAdmin(request: Request): Promise<AdminResult> {
