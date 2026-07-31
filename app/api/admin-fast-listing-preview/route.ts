@@ -368,7 +368,20 @@ function setSpec(specs: Record<string, string>, field: string, value: string) {
   const cleaned = cleanImportedValue(value)
   if (!cleaned || cleaned.length > 90) return
   if (looksLikePageNoise(cleaned)) return
+  if (specs[field] && !isBetterSpecValue(field, specs[field], cleaned)) return
   specs[field] = cleaned
+}
+
+function isBetterSpecValue(field: string, current: string, next: string) {
+  if (field === "mileage") {
+    const currentHasUnit = /\b(?:km|kms|kilometres|kilometers|miles)\b/i.test(current)
+    const nextHasUnit = /\b(?:km|kms|kilometres|kilometers|miles)\b/i.test(next)
+
+    if (currentHasUnit && !nextHasUnit) return false
+    if (!currentHasUnit && nextHasUnit) return true
+  }
+
+  return false
 }
 
 function cleanImportedValue(value: unknown) {
