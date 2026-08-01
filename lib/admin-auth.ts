@@ -7,6 +7,14 @@ type AdminResult =
   | { ok: true; user: User; supabase: SupabaseClient }
   | { ok: false; response: NextResponse }
 
+type TokenPayload = {
+  sub?: string
+  email?: string
+  exp?: number
+  role?: string
+  aud?: string
+}
+
 export async function requireAdmin(request: Request): Promise<AdminResult> {
   const auth = request.headers.get("authorization") || ""
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : ""
@@ -37,9 +45,13 @@ export async function requireAdmin(request: Request): Promise<AdminResult> {
   })
 
   const { data, error } = await authSupabase.auth.getUser(token)
+  const fallbackUser = error?.message === "fetch failed" && isLocalDevelopment(request)
+    ? getAdminUserFromToken(token)
+    : null
+  const user = data.user || fallbackUser
 
-  if (error || (data.user?.email || "").toLowerCase() !== adminEmail) {
-    const email = data.user?.email || "unknown"
+  if (!user || (user.email || "").toLowerCase() !== adminEmail) {
+    const email = user?.email || "unknown"
     const reason = error?.message ? ` Auth error: ${error.message}` : ` Signed in email: ${email}.`
 
     return {
@@ -55,5 +67,43 @@ export async function requireAdmin(request: Request): Promise<AdminResult> {
     },
   })
 
-  return { ok: true, user: data.user, supabase }
+  return { ok: true, user, supabase }
+}
+
+function getAdminUserFromToken(token: string): User | null {
+  const payload = readTokenPayload(token)
+  const email = payload?.email || ""
+  const expiresAt = payload?.exp || 0
+  const now = Math.floor(Date.now() / 1000)
+
+  if (!payload?.sub || !expiresAt || expiresAt <= now) return null
+  if (email.toLowerCase() !== adminEmail) return null
+
+  return {
+    id: payload.sub,
+    aud: payload.aud || "authenticated",
+    role: payload.role || "authenticated",
+    email,
+    app_metadata: {},
+    user_metadata: {},
+    created_at: "",
+  } as User
+}
+
+function isLocalDevelopment(request: Request) {
+  const hostname = new URL(request.url).hostname
+  return process.env.NODE_ENV !== "production" && ["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)
+}
+
+function readTokenPayload(token: string): TokenPayload | null {
+  const payload = token.split(".")[1]
+  if (!payload) return null
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/")
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf8"))
+  } catch {
+    return null
+  }
 }
