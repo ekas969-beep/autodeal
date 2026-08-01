@@ -92,6 +92,7 @@ export default function AdminPage() {
   const [data, setData] = useState<AdminData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [signedInEmail, setSignedInEmail] = useState("")
   const [savingId, setSavingId] = useState("")
   const [deletingErrors, setDeletingErrors] = useState(false)
   const [query, setQuery] = useState("")
@@ -141,7 +142,10 @@ export default function AdminPage() {
       return null
     }
 
-    if ((session.user.email || "").toLowerCase() !== adminEmail) {
+    const email = session.user.email || ""
+    setSignedInEmail(email)
+
+    if (email.toLowerCase() !== adminEmail) {
       setError("This admin panel is only available to the AutoDeal.ie admin account.")
       setLoading(false)
       return null
@@ -252,6 +256,12 @@ export default function AdminPage() {
     setDeletingErrors(false)
   }
 
+  async function switchToAdminLogin() {
+    await supabase.auth.signOut()
+    router.replace("/login")
+    router.refresh()
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950">
@@ -269,12 +279,26 @@ export default function AdminPage() {
           </p>
           <h1 className="mt-2 text-3xl font-extrabold">Access unavailable</h1>
           <p className="mt-3 text-slate-600">{error}</p>
-          <Link
-            href="/account"
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white hover:bg-blue-700"
-          >
-            Back to account
-          </Link>
+          {signedInEmail && (
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              Signed in as {signedInEmail}. Admin email is {adminEmail}.
+            </p>
+          )}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={switchToAdminLogin}
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white hover:bg-blue-700"
+            >
+              Log in as admin
+            </button>
+            <Link
+              href="/account"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-bold text-slate-800 hover:bg-slate-50"
+            >
+              Back to account
+            </Link>
+          </div>
         </div>
       </main>
     )
