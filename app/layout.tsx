@@ -3,13 +3,47 @@ import type { Metadata } from "next"
 import Navbar from "@/components/Navbar"
 import SiteFooter from "@/components/SiteFooter"
 import ClientErrorReporter from "@/components/ClientErrorReporter"
+import { siteName, siteUrl } from "@/lib/seo"
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "AutoDeal.ie",
-    template: "%s | AutoDeal.ie",
+    default: "Used Cars Ireland | Cars for Sale Ireland | AutoDeal.ie",
+    template: `%s | ${siteName}`,
   },
-  description: "Buy and sell vehicles in Ireland.",
+  description:
+    "Find used cars for sale in Ireland on AutoDeal.ie. Browse Volkswagen Passat, Audi, BMW, Toyota, Ford and more cars from sellers across Ireland.",
+  applicationName: siteName,
+  keywords: [
+    "used cars Ireland",
+    "cars for sale Ireland",
+    "car marketplace Ireland",
+    "buy cars Ireland",
+    "sell car Ireland",
+    "Volkswagen Passat Ireland",
+    "VW Passat for sale",
+    "Audi for sale Ireland",
+    "BMW for sale Ireland",
+    "Toyota for sale Ireland",
+  ],
+  alternates: {
+    canonical: siteUrl,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_IE",
+    siteName,
+    url: siteUrl,
+    title: "Used Cars Ireland | Cars for Sale Ireland | AutoDeal.ie",
+    description:
+      "Browse used cars for sale across Ireland on AutoDeal.ie. Find Volkswagen, Audi, BMW, Toyota, Ford and more vehicles.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Used Cars Ireland | Cars for Sale Ireland | AutoDeal.ie",
+    description:
+      "Browse used cars for sale across Ireland on AutoDeal.ie.",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },

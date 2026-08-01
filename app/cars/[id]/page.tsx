@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import CarGallery from "@/components/CarGallery"
@@ -10,21 +11,43 @@ import SellerContactReveal from "@/components/SellerContactReveal"
 import ListingShareButton from "@/components/ListingShareButton"
 import BuyerTips from "@/components/BuyerTips"
 import { isListingCurrentlyPublic } from "@/lib/listing-expiry"
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  listingMetadata,
+  vehicleJsonLd,
+} from "@/lib/seo"
+
+type CarPageProps = {
+  params: Promise<{ id: string }>
+}
+
+export async function generateMetadata({
+  params,
+}: CarPageProps): Promise<Metadata> {
+  const { id } = await params
+  const listing = await getListing(id)
+
+  if (!listing || !isPublicListing(listing)) {
+    return {
+      title: "Car listing not found",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
+  }
+
+  return listingMetadata(listing, id)
+}
 
 export default async function CarPage({
   params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+}: CarPageProps) {
   const { id } = await params
+  const listing = await getListing(id)
 
-  const { data: listing, error } = await supabase
-    .from("listings")
-    .select("*")
-    .eq("id", id)
-    .single()
-
-  if (error || !listing || !isPublicListing(listing)) {
+  if (!listing || !isPublicListing(listing)) {
     return notFound()
   }
 
@@ -73,9 +96,21 @@ export default async function CarPage({
   const galleryListing = {
     title: listing.title,
   }
+  const jsonLd = [
+    vehicleJsonLd(listing, id),
+    breadcrumbJsonLd([
+      { name: "Home", url: absoluteUrl("/") },
+      { name: "Cars for Sale Ireland", url: absoluteUrl("/listings") },
+      { name: vehicleName, url: absoluteUrl(`/cars/${id}`) },
+    ]),
+  ]
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-white px-3 py-4 text-slate-950 sm:px-4 sm:py-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <ScrollToTop />
 
       <div className="mx-auto w-full max-w-[1180px]">
@@ -487,7 +522,16 @@ function formatEngineSummary(listing: Record<string, unknown>) {
   return values.length ? values.join(" ") : "-"
 }
 
+async function getListing(id: string) {
+  const { data, error } = await supabase
+    .from("listings")
+    .select("*")
+    .eq("id", id)
+    .single()
 
+  if (error) return null
+  return data
+}
 
 function isPublicListing(listing: { status?: string | null }) {
   return isListingCurrentlyPublic(listing)
