@@ -132,10 +132,10 @@ export default function AdminPage() {
   const payments = useMemo(() => data?.payments || [], [data])
   const errors = useMemo(() => data?.errors || [], [data])
 
-  const getAdminSessionToken = useCallback(async () => {
+  const getAdminSessionToken = useCallback(async (refresh = false) => {
     const {
       data: { session },
-    } = await supabase.auth.getSession()
+    } = refresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession()
 
     if (!session?.user) {
       router.replace("/login")
@@ -161,11 +161,14 @@ export default function AdminPage() {
     const token = await getAdminSessionToken()
     if (!token) return
 
-    const response = await fetch("/api/admin-dashboard", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+    let response = await fetchAdminDashboard(token)
+
+    if (response.status === 401 || response.status === 403) {
+      const refreshedToken = await getAdminSessionToken(true)
+      if (refreshedToken) {
+        response = await fetchAdminDashboard(refreshedToken)
+      }
+    }
 
     const responseText = await response.text()
     const result = parseAdminResponse(responseText)
@@ -184,6 +187,15 @@ export default function AdminPage() {
     setData(result.data)
     setLoading(false)
   }, [getAdminSessionToken])
+
+  async function fetchAdminDashboard(token: string) {
+    return fetch("/api/admin-dashboard", {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+  }
 
   useEffect(() => {
     queueMicrotask(() => {

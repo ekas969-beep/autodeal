@@ -175,10 +175,10 @@ export default function AdminFastListingPage() {
     [selectedImages, visibleImages]
   )
 
-  async function getAdminToken() {
+  async function getAdminToken(refresh = false) {
     const {
       data: { session },
-    } = await supabase.auth.getSession()
+    } = refresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession()
 
     if (!session?.user) {
       router.replace("/login")
@@ -205,14 +205,30 @@ export default function AdminFastListingPage() {
       return
     }
 
-    const response = await fetch("/api/admin-fast-listing-preview", {
+    let response = await fetch("/api/admin-fast-listing-preview", {
       method: "POST",
+      cache: "no-store",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ url: sourceUrl }),
     })
+
+    if (response.status === 401 || response.status === 403) {
+      const refreshedToken = await getAdminToken(true)
+      if (refreshedToken) {
+        response = await fetch("/api/admin-fast-listing-preview", {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${refreshedToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: sourceUrl }),
+        })
+      }
+    }
 
     const result = await response.json().catch(() => null)
 
@@ -254,8 +270,9 @@ export default function AdminFastListingPage() {
     }
 
     try {
-      const response = await fetch("/api/admin-fast-listing-create", {
+      let response = await fetch("/api/admin-fast-listing-create", {
         method: "POST",
+        cache: "no-store",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -263,6 +280,22 @@ export default function AdminFastListingPage() {
         body: JSON.stringify({ ...draft, images: visibleImages }),
         signal: abortController.signal,
       })
+
+      if (response.status === 401 || response.status === 403) {
+        const refreshedToken = await getAdminToken(true)
+        if (refreshedToken) {
+          response = await fetch("/api/admin-fast-listing-create", {
+            method: "POST",
+            cache: "no-store",
+            headers: {
+              Authorization: `Bearer ${refreshedToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ...draft, images: visibleImages }),
+            signal: abortController.signal,
+          })
+        }
+      }
 
       if (!response.ok) {
         const result = await response.json().catch(() => null)
