@@ -1,7 +1,5 @@
 ﻿import { NextResponse } from "next/server"
-import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js"
-
-const adminEmail = "ekas969@gmail.com"
+import { requireAdmin } from "@/lib/admin-auth"
 
 const makes = [
   "Abarth", "Alfa Romeo", "Audi", "BMW", "BYD", "Citroen", "Cupra", "Dacia", "Fiat",
@@ -17,10 +15,6 @@ const countyNames = [
   "Limerick", "Longford", "Louth", "Mayo", "Meath", "Monaghan", "Offaly", "Roscommon",
   "Sligo", "Tipperary", "Tyrone", "Waterford", "Westmeath", "Wexford", "Wicklow",
 ]
-
-type AdminResult =
-  | { ok: true; user: User; supabase: SupabaseClient }
-  | { ok: false; response: NextResponse }
 
 type JsonRecord = Record<string, unknown>
 
@@ -119,40 +113,6 @@ function doneDealHtmlHeaders(url: string) {
     Pragma: "no-cache",
     Referer: new URL(url).origin,
   }
-}
-
-async function requireAdmin(request: Request): Promise<AdminResult> {
-  const auth = request.headers.get("authorization") || ""
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : ""
-
-  if (!token) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "Not signed in." }, { status: 401 }),
-    }
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceKey) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "Admin settings are missing." }, { status: 500 }),
-    }
-  }
-
-  const supabase = createClient(supabaseUrl, serviceKey)
-  const { data, error } = await supabase.auth.getUser(token)
-
-  if (error || (data.user?.email || "").toLowerCase() !== adminEmail) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "Admin access only." }, { status: 403 }),
-    }
-  }
-
-  return { ok: true, user: data.user, supabase }
 }
 
 async function fetchDoneDealListingApi(listingId: string, sourceUrl: string) {

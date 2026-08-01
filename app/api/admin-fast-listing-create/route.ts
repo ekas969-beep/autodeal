@@ -1,15 +1,11 @@
 ﻿import { NextResponse } from "next/server"
-import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js"
+import { type SupabaseClient } from "@supabase/supabase-js"
 import { freeListingFields } from "@/config/plans"
+import { requireAdmin } from "@/lib/admin-auth"
 import { revalidatePublicListings } from "@/lib/listings-revalidation"
 
-const adminEmail = "ekas969@gmail.com"
 const imageBucket = "listing-images"
 const encoder = new TextEncoder()
-
-type AdminResult =
-  | { ok: true; user: User; supabase: SupabaseClient }
-  | { ok: false; response: NextResponse }
 
 export async function POST(request: Request) {
   const admin = await requireAdmin(request)
@@ -130,40 +126,6 @@ export async function POST(request: Request) {
       "Cache-Control": "no-cache, no-transform",
     },
   })
-}
-
-async function requireAdmin(request: Request): Promise<AdminResult> {
-  const auth = request.headers.get("authorization") || ""
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : ""
-
-  if (!token) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "Not signed in." }, { status: 401 }),
-    }
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceKey) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "Admin settings are missing." }, { status: 500 }),
-    }
-  }
-
-  const supabase = createClient(supabaseUrl, serviceKey)
-  const { data, error } = await supabase.auth.getUser(token)
-
-  if (error || (data.user?.email || "").toLowerCase() !== adminEmail) {
-    return {
-      ok: false,
-      response: NextResponse.json({ ok: false, error: "Admin access only." }, { status: 403 }),
-    }
-  }
-
-  return { ok: true, user: data.user, supabase }
 }
 
 async function uploadRemoteImages(
