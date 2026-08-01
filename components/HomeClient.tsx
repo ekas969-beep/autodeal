@@ -720,7 +720,7 @@ export default function HomeClient({
       <section id="featured-listings" className="mx-auto max-w-7xl px-4 pb-12 pt-14">
         <SectionHeader
           title="Featured Listings"
-          subtitle={loading ? "Loading listings..." : `Check out ${featuredListings.length} highlighted cars on AutoDeal.ie`}
+          subtitle={loading ? "Loading listings..." : "Highlighted cars from sellers across Ireland"}
           actionHref="/listings"
           actionLabel="View all listings"
         />
@@ -756,7 +756,7 @@ export default function HomeClient({
       <section className="mx-auto max-w-7xl px-4 pb-16">
         <SectionHeader
           title="Latest Cars for Sale"
-          subtitle={`Freshly listed vehicles across Ireland. Showing ${visibleLatestListings.length} of ${latestListings.length}.`}
+          subtitle="Freshly listed vehicles across Ireland."
           actionHref="/listings"
           actionLabel="Browse all"
         />

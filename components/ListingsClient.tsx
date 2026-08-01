@@ -773,7 +773,7 @@ function ListingsContent({
             Cars for Sale Ireland
           </h1>
           <p className="mt-3 text-gray-500">
-            Found {listings.length} vehicles for sale
+            Browse vehicles listed on AutoDeal.ie
           </p>
         </div>
 
@@ -839,7 +839,7 @@ function ListingsContent({
             <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="font-semibold text-gray-900">
-                  Showing {visibleListings.length} of {listings.length} results
+                  Vehicles for sale
                 </p>
                 <p className="text-sm text-gray-500">
                   Browse vehicles listed on AutoDeal.ie
