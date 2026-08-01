@@ -34,19 +34,17 @@ export async function requireAdmin(request: Request): Promise<AdminResult> {
       persistSession: false,
       autoRefreshToken: false,
     },
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
   })
 
-  const { data, error } = await authSupabase.auth.getUser()
+  const { data, error } = await authSupabase.auth.getUser(token)
 
   if (error || (data.user?.email || "").toLowerCase() !== adminEmail) {
+    const email = data.user?.email || "unknown"
+    const reason = error?.message ? ` Auth error: ${error.message}` : ` Signed in email: ${email}.`
+
     return {
       ok: false,
-      response: NextResponse.json({ ok: false, error: "Admin access only." }, { status: 403 }),
+      response: NextResponse.json({ ok: false, error: `Admin access only.${reason}` }, { status: 403 }),
     }
   }
 
